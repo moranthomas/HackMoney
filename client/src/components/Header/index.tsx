@@ -340,28 +340,15 @@ export default function Header() {
         </Title>
       </HeaderRow>
       <HeaderLinks>
-        <StyledNavLink id={`swap-nav-link`} to={'/swap'}>
-          {t('swap')}
+        <StyledNavLink id={`deposit-nav-link`} to={'/deposit'}>
+          Deposit
         </StyledNavLink>
-        <StyledNavLink
-          id={`pool-nav-link`}
-          to={'/pool'}
-          isActive={(match, { pathname }) =>
-            Boolean(match) ||
-            pathname.startsWith('/add') ||
-            pathname.startsWith('/remove') ||
-            pathname.startsWith('/increase') ||
-            pathname.startsWith('/find')
-          }
-        >
-          {t('pool')}
+        <StyledNavLink id={`borrow-nav-link`} to={'/borrow'}>
+          Borrow
         </StyledNavLink>
-        <StyledNavLink id={`stake-nav-link`} to={'/vote'}>
-          Vote
+        <StyledNavLink id={`market-nav-link`} to={'/market'}>
+          Market
         </StyledNavLink>
-        <StyledExternalLink id={`stake-nav-link`} href={'https://info.uniswap.org'}>
-          Charts <span style={{ fontSize: '11px', textDecoration: 'none !important' }}>↗</span>
-        </StyledExternalLink>
       </HeaderLinks>
       <HeaderControls>
         <HeaderElement>
