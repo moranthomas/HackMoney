@@ -18,7 +18,7 @@ export default function SwapHeader({ allowedSlippage }: { allowedSlippage: Perce
       <RowBetween>
         <RowFixed>
           <TYPE.black fontWeight={500} fontSize={16} style={{ marginRight: '8px' }}>
-            Swap{' '}
+            Deposit{' '}
           </TYPE.black>
         </RowFixed>
         <RowFixed>
