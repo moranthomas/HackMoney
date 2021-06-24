@@ -57,7 +57,7 @@ To create a clone of each account, you can create a `ProxyWallet` contract objec
 
 `p0.isClone()` should return true (whereas `p.isClone()` should return false)
 
-You can also pull existing contracts like so by using the Compound Comptroller contract address`0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B` from etherscan api. 
+Within `brownie` you can also pull existing contracts like so by using the Compound Comptroller contract address`0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B` from etherscan api. This scrapes the abi and exposes the methods of the Contract objects, making them easier to interact with in CLI.
 
 `>>>comp = Contract.from_explorer('0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B')`
 
@@ -69,3 +69,24 @@ Create a cUSDC and cETH Contract object:
 
 and once that's done this will get you the underlying usdc contract  
 `>>>usdc = Contract.from_explorer(cusdc.underlying())`
+
+Now, we can do things like :
+
+```
+>>> cusdc.totalSupply() / 10**cusdc.decimals()
+133659923056.00108
+>>> cusdc.totalBorrows() / 10**usdc.decimals()
+1646513467.957993
+```
+And mint cETH like so
+
+```
+>>> ceth.mint({'from':a[0],'value':1*10**18})
+Transaction sent: 0x46b140cfbb74bd7e2c9f58263b7cf1bf25e130a9c09980edc8831c81325a4ef5
+  Gas price: 0.0 gwei   Gas limit: 12000000   Nonce: 3
+  Transaction confirmed - Block: 12692881   Gas used: 164037 (1.37%)
+
+<Transaction '0x46b140cfbb74bd7e2c9f58263b7cf1bf25e130a9c09980edc8831c81325a4ef5'> 
+>>> ceth.balanceOf(a[0])
+4988760262
+```
