@@ -4,7 +4,11 @@ import Navbar from './layout/Navbar';
 import Banner from './layout/Banner';
 import './App.css';
 import getWeb3 from "./getWeb3";
-import ProxyWalletContract from "./artifacts/deployments/ProxyWalletContract.json";
+//my brownie instance drops in a map file when deployed on brownie
+import map from "./artifacts/deployments/map.json";
+//and the abi is found under contracts within ProxyWallet.json
+import proxyWallet from "./artifacts/contracts/ProxyWallet.json";
+
 const config = require('./config/config_mainnet.json');
 
 class App extends Component {
@@ -37,9 +41,11 @@ class App extends Component {
       this.setState({ displayAccount: displayAccount });
       this.setState({ networkId: networkId });
 
-      const ProxyWalletAddress = '0x4826533B4897376654Bb4d4AD88B7faFD0C98528'
+      const ProxyWalletAddress = map.dev.ProxyWallet;
+      console.log(ProxyWalletAddress);
+
       const ProxyWalletInstance = new web3.eth.Contract(
-        ProxyWalletContract.abi,
+        proxyWallet.abi,
         ProxyWalletAddress,
       );
 
