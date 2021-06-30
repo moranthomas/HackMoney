@@ -26,6 +26,7 @@ compiler:
 
 dependencies:
   - OpenZeppelin/openzeppelin-contracts@4.1.0
+  - Uniswap/uniswap-v2-core@1.0.1
 
 # enable output of development artifacts to load with react
 dev_deployment_artifacts: true
