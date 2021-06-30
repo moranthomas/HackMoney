@@ -4,10 +4,11 @@ import Navbar from './layout/Navbar';
 import Banner from './layout/Banner';
 import './App.css';
 import getWeb3 from "./getWeb3";
-//my brownie instance drops in a map file when deployed on brownie
+//my brownie instance drops in a "map" file when deployed on brownie
+
 import map from "./artifacts/deployments/map.json";
 //and the abi is found under contracts within ProxyWallet.json
-import proxyWallet from "./artifacts/contracts/ProxyWallet.json";
+import ProxyWallet from "./artifacts/contracts/ProxyWallet.json";
 
 const config = require('./config/config_mainnet.json');
 
@@ -25,7 +26,6 @@ class App extends Component {
     cUSDCxr: ''
   };
 
-
   componentDidMount = async () => {
     try {
       const web3 = await getWeb3();                     // Get network provider and web3 instance.
@@ -40,12 +40,9 @@ class App extends Component {
       this.setState({ accounts: userAccounts });
       this.setState({ displayAccount: displayAccount });
       this.setState({ networkId: networkId });
-
-      const ProxyWalletAddress = map.dev.ProxyWallet;
-      console.log(ProxyWalletAddress);
-
+      const ProxyWalletAddress = map.dev.ProxyWallet.toString();
       const ProxyWalletInstance = new web3.eth.Contract(
-        proxyWallet.abi,
+        ProxyWallet.abi,
         ProxyWalletAddress,
       );
 
@@ -76,11 +73,10 @@ class App extends Component {
       const cUSDCxr = await cUSDCExchangeRate();
       this.setState({ cUSDCxr: parseFloat(cUSDCxr).toFixed(4)});
 
-
       //returns the current exchange rate from cUSDC contract
       async function cUSDCExchangeRate () {
-        const xr = await cUsdcContract.methods.exchangeRateCurrent().call()/scaler.cusdcRate;
-        return xr
+      const xr = await cUsdcContract.methods.exchangeRateCurrent().call()/scaler.cusdcRate;
+      return xr
       }
 
       //here we build the USDC contract and ABI
