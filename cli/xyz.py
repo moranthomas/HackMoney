@@ -7,6 +7,8 @@ from decimal import Decimal
 from pprint import pprint
 from typing import Any, Mapping
 
+RELATIVE_DEADLINE = 300
+
 def xlate_attr_dict(x: Any) -> Mapping:
     if isinstance(x, web3.datastructures.AttributeDict) or isinstance(x, dict):
         return dict(
@@ -70,7 +72,7 @@ USDC = TOKENS[CONTRACTS['token-usdc'].address]
 CUSDC = TOKENS[CONTRACTS['compound-cusdc'].address]
 FUT = common.abi.load_deployed_FutureToken(w3)
 
-A = w3.eth.accounts[0]
+A = w3.eth.accounts[1]
 
 print(f'Ethereum block: {w3.eth.block_number}')
 print()
@@ -105,7 +107,7 @@ if 1:
 
     balance = CUSDC.balanceOf(A)
     if balance < 10_000:
-        receipt = UNISWAP.swapETHForExactTokens(10_000 - balance, Decimal('0.25'), [WETH, CUSDC], tx_from=A, transact=True)
+        receipt = UNISWAP.swapETHForExactTokens(10_000 - balance, Decimal('0.25'), [WETH, CUSDC], tx_from=A, relative_deadline=RELATIVE_DEADLINE, transact=True)
         dump_tx_receipt(receipt)
     dump_account_balances((A,), (None, WETH, USDC, CUSDC, FUTL, FUTS, FUTL_CUSDC, FUTS_CUSDC, FUTL_FUTS))
     print()
@@ -124,7 +126,7 @@ if 1:
     if balance <= 0:
         amount = min(FUTL.balanceOf(A), FUTS.balanceOf(A))
         amount /= 2
-        receipt = UNISWAP.addLiquidity(FUTL, FUTS, amount, amount, amount, amount, tx_from=A, approve=True, transact=True)
+        receipt = UNISWAP.addLiquidity(FUTL, FUTS, amount, amount, amount, amount, tx_from=A, relative_deadline=RELATIVE_DEADLINE, approve=True, transact=True)
         dump_tx_receipt(receipt)
     dump_account_balances((A,), (None, WETH, USDC, CUSDC, FUTL, FUTS, FUTL_CUSDC, FUTS_CUSDC, FUTL_FUTS))
     print()
@@ -133,7 +135,7 @@ if 1:
     if balance <= 0:
         amount = FUTL.balanceOf(A)
         amount_cusdc = amount * Decimal('0.0005')
-        receipt = UNISWAP.addLiquidity(FUTL, CUSDC, amount, amount_cusdc, amount, amount_cusdc, tx_from=A, approve=True, transact=True)
+        receipt = UNISWAP.addLiquidity(FUTL, CUSDC, amount, amount_cusdc, amount, amount_cusdc, tx_from=A, relative_deadline=RELATIVE_DEADLINE, approve=True, transact=True)
         dump_tx_receipt(receipt)
     dump_account_balances((A,), (None, WETH, USDC, CUSDC, FUTL, FUTS, FUTL_CUSDC, FUTS_CUSDC, FUTL_FUTS))
     print()
@@ -142,7 +144,7 @@ if 1:
     if balance <= 0:
         amount = FUTS.balanceOf(A)
         amount_cusdc = amount * Decimal('0.0005')
-        receipt = UNISWAP.addLiquidity(FUTS, CUSDC, amount, amount_cusdc, amount, amount_cusdc, tx_from=A, approve=True, transact=True)
+        receipt = UNISWAP.addLiquidity(FUTS, CUSDC, amount, amount_cusdc, amount, amount_cusdc, tx_from=A, relative_deadline=RELATIVE_DEADLINE, approve=True, transact=True)
         dump_tx_receipt(receipt)
     dump_account_balances((A,), (None, WETH, USDC, CUSDC, FUTL, FUTS, FUTL_CUSDC, FUTS_CUSDC, FUTL_FUTS))
     print()

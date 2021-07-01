@@ -186,6 +186,20 @@ class Uniswap:
     def WETH(self) -> str:
         return self.__router.functions.WETH().call()
 
+    def quote(self,
+              tokenA: Token,
+              tokenB: Token,
+              amountA: Decimal,
+              reserveA: Decimal,
+              reserveB: Decimal) -> Decimal:
+        raw_amountA = tokenA.to_int(amountA)
+        raw_reserveA = tokenA.to_int(reserveA)
+        raw_reserveB = tokenB.to_int(reserveB)
+        function = self.__router.functions.quote(raw_amountA, raw_reserveA, raw_reserveB)
+        raw_amountB = function.call()
+        amountB = tokenB.to_dec(raw_amountB)
+        return amountB
+
     def getAmountIn(self, amountOut: Decimal, reserveIn: Decimal, reserveOut: Decimal, tokenIn: Token, tokenOut: Token) -> Decimal:
         raw_amountOut = tokenOut.to_int(amountOut)
         raw_reserveIn = tokenIn.to_int(reserveIn)

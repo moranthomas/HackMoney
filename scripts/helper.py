@@ -102,6 +102,7 @@ class Wrapper:
         return decimal.Decimal(amount) / 10**self.decimals(contract)
 
 def main():
+    from brownie import FutureToken, ProxyWallet, accounts
     global CONTRACTS
     global WETH
     global USDC
@@ -112,3 +113,7 @@ def main():
     USDC = CONTRACTS['token-usdc']
     CUSDC = CONTRACTS['compound-cusdc']
     UNISWAP = CONTRACTS['uniswap-v2-router']
+    network = brownie.network.main.show_active()
+    if brownie.network.chain.id >= 1000 and (network == 'development' or network.find('fork') >= 0):
+        FUT = FutureToken.deploy({'from': accounts[0]})
+        PW = ProxyWallet.deploy({'from': accounts[0]})
