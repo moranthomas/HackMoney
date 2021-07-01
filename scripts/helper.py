@@ -9,20 +9,35 @@ def _get_interfaces_dir() -> Path:
     for project in brownie.project.main.get_loaded_projects():
         return project._path.joinpath(project._structure['interfaces'])
 
+def load_mainnet_contract(name: str) -> brownie.Contract:
+    interfaces_dir = _get_interfaces_dir()
+    assert not any(c in name for c in '*?/\\')
+    path, = interfaces_dir.glob(f'mainnet.0x*.{name}.abi')
+    assert path.name.startswith('mainnet.0x')
+    assert path.name.endswith('.abi')
+    addr, name_from_path = path.name[8:-4].split('.', 1)
+    assert name == name_from_path
+    addr = brownie.convert.EthAddress(addr)
+    with path.open() as fd:
+        abi = json.load(fd)
+    contract = brownie.Contract.from_abi(name=name, address=addr, abi=abi)
+    return contract
+
 def load_mainnet_contracts(*args) -> Mapping[str, brownie.Contract]:
+    if args:
+        return dict(
+            (name, load_mainnet_contract(name))
+            for name in args
+        )
     results = {}
     interfaces_dir = _get_interfaces_dir()
-    for name in args:
-        assert name not in results
-        assert not any(c in name for c in '*?')
-        path, = interfaces_dir.glob(f'mainnet.0x*.{name}.abi')
+    for path in interfaces_dir.glob(f'mainnet.0x*.*.abi'):
         assert path.name.startswith('mainnet.0x')
         assert path.name.endswith('.abi')
+        addr, name = path.name[8:-4].split('.', 1)
+        addr = brownie.convert.EthAddress(addr)
         with path.open() as fd:
             abi = json.load(fd)
-        addr, name_from_path = path.name[8:-4].split('.', 1)
-        assert name == name_from_path
-        addr = brownie.convert.EthAddress(addr)
         contract = brownie.Contract.from_abi(name=name, address=addr, abi=abi)
         results[name] = contract
     return results
@@ -85,3 +100,15 @@ class Wrapper:
 
     def to_dec(self, contract: brownie.Contract, amount: int) -> decimal.Decimal:
         return decimal.Decimal(amount) / 10**self.decimals(contract)
+
+def main():
+    global CONTRACTS
+    global WETH
+    global USDC
+    global CUSDC
+    global UNISWAP
+    CONTRACTS = load_mainnet_contracts()
+    WETH = CONTRACTS['token-weth']
+    USDC = CONTRACTS['token-usdc']
+    CUSDC = CONTRACTS['compound-cusdc']
+    UNISWAP = CONTRACTS['uniswap-v2-router']
