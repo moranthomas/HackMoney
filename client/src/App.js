@@ -70,14 +70,16 @@ class App extends Component {
         cusdcRate : Math.pow(10,decimals.cusdcRate)
       }
 
-      const cUSDCxr = await cUSDCExchangeRate();
-      this.setState({ cUSDCxr: parseFloat(cUSDCxr).toFixed(4)});
-
       //returns the current exchange rate from cUSDC contract
       async function cUSDCExchangeRate () {
       const xr = await cUsdcContract.methods.exchangeRateCurrent().call()/scaler.cusdcRate;
       return xr
       }
+
+      const cUSDCxr = await cUSDCExchangeRate();
+      this.setState({ cUSDCxr: parseFloat(cUSDCxr).toFixed(4)});
+
+
 
       //here we build the USDC contract and ABI
       var usdcAddress = config.usdcAddress;
