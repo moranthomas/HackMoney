@@ -1,9 +1,46 @@
 # SPDX-License-Identifier: UNLICENSED
 import json
 import decimal
+import lzma
+import base64
 from pathlib import Path
-from typing import Mapping, Union
+from typing import Any, Mapping, Union
 import brownie
+
+_ABI = dict(
+    (k, json.loads(lzma.decompress(base64.b64decode(v))))
+    for k, v in {
+        'IUniswapV2Pair': '''
+/Td6WFoAAATm1rRGAgAhARwAAAAQz1jM4BygAuddAC2ewEYTrpli4wX8vZ68M4cU8L7DOree15Te
+wo664KUulwrmBrrjxKklWzXLVxxBh70PHSlhMa+WWTHneuVWkuEDdmbZsTE5IZOI62K0pgbpGQDy
+blIwSUizppxOzal3+oi9LGGmK4wmxOzqUTSDVrCn+Az4yQ+RnhAZWQ0bzOE4//ooO0MuRo0rOnKc
+koIqDoJJDTeDoOCZ4VRB2lXbvnY+opp6UT33QpHjlT7cbUr57kv5qbVRSsB27fJyAaQvPqYvE6YX
+IJ7s/CcVP6pbdiFj/hmXqp2tDOqCKqDBGJiDcCyB9Rb7V64CQd7d4E/XAC5ca893lDLz73XRR4TU
+ovUE1jZMTdsDtc6KOhi1bqplziDBK5UdXxdxfbjnFvcfrxcd7zypyQ0bAzNzEk+El56gIrJ6dmcH
+/qGpM7NVlcaj/vo9VyJogcE8LHGsXPjP45U2unlfEFyog4uV12l3dX9zwCOFXrnB5DVCJEI31Dxj
+rQ4jByQYu4nFtxaBnBF8NrXKaRepyWi2BluF7rO/S/o16IMiunNwccQJzUt7Y7TIjvOBSpuYPjY1
+L8DJ1LQFXpBkJpzuvxdshS+a5rnfplGGdE8CVSwwmKhGuoxjj50GHpQ+zv9jRoO390JsFWWkGpRK
+SXqT/9MKGoxl7RCldmZ9dxDkPZpjWTx1AJ+cYOdcblZTKmU1nN/48sdQKYRu/PzkW9wb0DG7IFdA
+TGz2VyS8bV7UdD/Y0jDJ/lGjbFnK9lrMqdKmsnWmZEORFf3jh5jutIWm3Do8VYiLN7OMw3qLRDaf
+nQxNU5bov+pCCiqTnsVZXPcWE5VQF3VvQhO1+QU9V1ZH9I8Y44VmktiAWpwoLjDgsv0Uh0eWVgkt
+luRPrHfFI0cYnheRd8+sBa6gGNRU6fA+5NQycIfs8Kvqkx8PyEq3VfGRVsOuSQFG+CjANgociVFP
+ZTj6JpO1k8uw8gWeD9P8TtHuwDqfY6MQcEZYJP1hvQAAAAAl0pBXmKWlygABgwahOQAAdOdcCrHE
+Z/sCAAAAAARZWg==
+''',
+        'IERC20': '''
+/Td6WFoAAATm1rRGAgAhARwAAAAQz1jM4AlyAU9dAC2ewEYTrpli4wX8vZ68M4cU8L7DOree15Te
+wo664KUulwrmBrrjxKklWzXLVxxBh70PHSlhMa+WWTHneuVWkuEDdmbZsTE5IZOI62K0pgbpGQDy
+blIwSUizppxOzal3+oi9LGGmK4wmxOzqUTSDVrCn+Az4yQ+RnhAZWQ0bzOE4//ooKdT3dvBHgZs1
+URT9A0sYTMG3V7kvU3oLiLxZtG8cQaZ+Bi5kpid4eQ5PLTl/o3qRK/Xo9zz27AWibABGxNHkqdmd
+y+zhNCJMKMSxSg1ZlMmrgJTMRpyFOa3XhPOyx1wJEznO84NW436qzudDcDgzu3BhI/KQ5PgQadVj
+YqU/tTm6MW+Jp/AdELheaTTROIC97U7WDqemq/L4ncGuMt2kmWHwh42jtyaFy6Sw8zug2UGrjh0O
+APpkKpqrCkQl6gQHxNmdQwUuJS7DICQAAACWH8Bla/tjYAAB6wLzEgAAq6JnTrHEZ/sCAAAAAARZ
+Wg==
+''',
+    }.items())
+
+_ABI_IUniswapV2Pair = _ABI['IUniswapV2Pair']
+_ABI_IERC20 = _ABI['IERC20']
 
 def _get_interfaces_dir() -> Path:
     for project in brownie.project.main.get_loaded_projects():
@@ -41,6 +78,9 @@ def load_mainnet_contracts(*args) -> Mapping[str, brownie.Contract]:
         contract = brownie.Contract.from_abi(name=name, address=addr, abi=abi)
         results[name] = contract
     return results
+
+def create_uniswap_v2_pair_contract(name: str, address: Any) -> brownie.Contract:
+    return brownie.Contract.from_abi(name=name, address=address, abi=_ABI_IUniswapV2Pair)
 
 def D(x: int, decimals: int = 0):
     '''Convert integer to scaled decimal'''
@@ -113,6 +153,7 @@ def main():
     USDC = CONTRACTS['token-usdc']
     CUSDC = CONTRACTS['compound-cusdc']
     UNISWAP = CONTRACTS['uniswap-v2-router']
+    UNISWAP_FACTORY = CONTRACTS['uniswap-v2-factory']
     network = brownie.network.main.show_active()
     if brownie.network.chain.id >= 1000 and (network == 'development' or network.find('fork') >= 0):
         FUT = FutureToken.deploy({'from': accounts[0]})
