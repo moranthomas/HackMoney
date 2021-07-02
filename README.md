@@ -10,52 +10,40 @@ Install dependencies
 ```$ npm install```
 
 This uses `brownie`. If you don't have brownie installed follow documentation [here](https://eth-brownie.readthedocs.io/en/stable/install.html).
-Once `brownie` is installed you can change the config file `~/.brownie/network-config.yaml` to include your API key here by changing `$WEB3_INFURA_PROJECT_ID`.
 
-```- name: Ethereum
-    networks:
-      - name: Mainnet (Infura)
-        chainid: 1
-        id: mainnet
-        host: https://mainnet.infura.io/v3/$WEB3_INFURA_PROJECT_ID
-        explorer: https://api.etherscan.io/api
-```
-If you have an Alchemy API, you can update it to 
+## Helper Scripts
 
-```- name: Ethereum
-    networks:
-      - name: Mainnet (Alchemy)
-        chainid: 1
-        id: mainnet
-        host: https://eth-mainnet.alchemyapi.io/v2/$YOUR_API_KEY
-        explorer: https://api.etherscan.io/api
-```
+There are helper scripts to load the mainnet contracts to make it easier for development.
 
-Then run
+`$ brownie run --interactive --network mainnet-fork helper`
 
-`$ brownie console --network mainnet-fork`
+This creates a local fork of the mainnet and also runs the `helper.py` script that creates a few contract objects, such as `WETH, USDC, CUSDC, UNISWAP`. The `UNISWAP` contract object will reference the `uniswap-v2-router` contract.
 
-This creates a local fork of the mainnet.
+Creating new contract objects within the brownie console are now easier. For example, creating a contract object to interact with cDAI can be done as the following:
 
-You can deploy the `ProxyWallet` contract as the following and declare a contract object `p` that allows you to interact with methods within `p` in the command line.
+`>>>CDAI = CONTRACTS['compound-cdai']`
+
+## Deploying `ProxyWallet` and `FutureContract`
+
+You can deploy the `ProxyWallet` contract as the following and declare a contract object `p` that allows you to interact with methods in the command line.
 
 `>>> p=ProxyWallet.deploy({'from':a[0]})`
 
-You should see something like this
+Deploying `FutureContract` is done similarly.
 
-```Transaction sent: 0x3007b657b9f2f9d28209aa9a3318a042fa8d2c7f45f06870bc3ebe398086e744
-  Gas price: 0.0 gwei   Gas limit: 12000000   Nonce: 0
-  ProxyWallet.constructor confirmed - Block: 1   Gas used: 451186 (3.76%)
-  ProxyWallet deployed at: 0xF104A50668c3b1026E8f9B0d9D404faF8E42e642
-  
-  >>> p
-  <ProxyWallet Contract '0xF104A50668c3b1026E8f9B0d9D404faF8E42e642'>
-```
-To create a clone of each account, you can create a `ProxyWallet` contract object for the address returned by `getOrCreateClone`
+`>>> ft = FutureContract.deploy({'from':a[0]})`
 
-`>>>p0=ProxyWallet.at(p.getOrCreateClone({'from':a[0]}).return_value)`
+The deployed address of the contracts in brownie version 1.14.6 is stored under `/client/src/artifacts/deployments/map.json`
+
+## Creating Clones
+
+To create a clone, you can create a `ProxyWallet` contract object for the address returned by `getOrCreateClone`
+
+`>>> p0 = ProxyWallet.at(p.getOrCreateClone({'from':a[0]}).return_value)`
 
 `p0.isClone()` should return true (whereas `p.isClone()` should return false)
+
+## Creating Contract Objects from Explorer
 
 Within `brownie` you can also pull existing contracts like so by using the Compound Comptroller contract address`0x3d9819210A31b4961b30EF54bE2aeD79B9c9Cd3B` from etherscan api. This scrapes the abi and exposes the methods of the Contract objects, making them easier to interact with in CLI.
 

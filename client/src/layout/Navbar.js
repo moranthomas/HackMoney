@@ -3,9 +3,8 @@ import { Link } from 'react-router-dom';
 import convexityLogoLight from '../ConvexityLogoLight.png';
 import { Route } from 'react-router-dom';
 import Deposit from './Deposit';
-import Market from './Market.js';
 import Borrow from './Borrow.js';
-
+import Home from './Home.js';
 
 export default function Navbar(props) {
 
@@ -16,17 +15,20 @@ export default function Navbar(props) {
     return (
         <header style={headerStyle}>
             <div style={centerFlex}>
+            <Link to="/deposit">
                 <img src={convexityLogoLight} style={logoStyle} alt=''/>
+                </Link>
             </div>
             <div>
                 <Link style={linkStyle} to="/deposit"> Deposit </Link>
                 | <Link style={linkStyle} to="/borrow"> Borrow </Link>
-                | <Link style={linkStyle} to="/market"> Market </Link>
 
-                {/* <Route path="/" component={Deposit} /> */}
+                {/* <Route path="/" component={Home} /> */}
+                {/* <Route path="/home" component={Home} /> */}
                 <Route path="/deposit" component={Deposit} />
                 <Route path="/borrow" component={Borrow} />
-                <Route path="/market" component={Market} />
+
+
             </div>
             <div style={connectorStyle}>
                 <button style={connectWalletBtn} onClick={() => setFromAccount("0x123")}>
@@ -34,7 +36,7 @@ export default function Navbar(props) {
                 </button>
                 <p style = {accountsStyle} >Account: {props.displayAccount}</p>
                 <p style = {accountsStyle} >NetworkID: {props.networkId}</p>
-                {/* <p style = {accountsStyle} >Your account balance: {this.state.accountBalance} Eth </p> */}
+                <p style = {accountsStyle} >USDC Exchange Rate: {props.cUSDCxr} </p> 
             </div>
 
         </header>

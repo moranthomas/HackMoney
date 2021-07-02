@@ -2,9 +2,9 @@ import React from 'react';
 
 export default function Banner() {
     return (
-        <body style={headerStyle}>
+        <div style={headerStyle}>
             <div style={centerFlex}></div>
-        </body>
+        </div>
     )
 }
 

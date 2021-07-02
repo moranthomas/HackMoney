@@ -20,9 +20,11 @@ abstract contract FutureTokenBaseData {
 }
 
 abstract contract FutureTokenClassData {
+    IERC20Metadata internal _class_ctoken;
     uint256 internal _class_expiry;
-    address internal _class_series_short;
-    address internal _class_series_long;
+    //    uint256 internal _class_margin_ratio;
+    FutureToken internal _class_series_short;
+    FutureToken internal _class_series_long;
 }
 
 abstract contract FutureTokenSeriesData {
@@ -31,12 +33,16 @@ abstract contract FutureTokenSeriesData {
     mapping(address => mapping(address => uint256)) internal _series_allowances;
     string internal _series_symbol;
     //    string internal _series_name;
-    uint8 internal _series_decimal;
+    //    uint8 internal _series_decimal;
     uint256 internal _series_totalSupply;
 }
 
 abstract contract FutureTokenBase is FutureTokenBaseData {
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    uint8 constant internal SERIES_DECIMALS = 18;
+    uint256 constant internal SERIES_MARGIN_RATIO_DIVISOR = 1_000000_000000_000000;
+    uint256 constant internal SERIES_MARGIN_RATIO_MULTIPLIER = 25000_000000_000000;
 
     function instanceType() external view returns (InstanceType) {
 	return _instance_type;
@@ -82,18 +88,40 @@ abstract contract FutureTokenClass is
     FutureTokenBase,
     FutureTokenClassData
 {
+    function ctoken() external view /*onlyIfClass*/ returns (IERC20Metadata) {
+	return _class_ctoken;
+    }
+
     function expiry() external view /*onlyIfClass*/ returns (uint256) {
 	return _class_expiry;
     }
 
-    function seriesShort() external view /*onlyIfClass*/ returns (address) {
+    function seriesShort() external view /*onlyIfClass*/ returns (FutureToken) {
 	return _class_series_short;
     }
 
-    function seriesLong() external view /*onlyIfClass*/ returns (address) {
+    function seriesLong() external view /*onlyIfClass*/ returns (FutureToken) {
 	return _class_series_long;
     }
 
+    function supply(uint256 amount) external returns (bool) {
+	require(amount > 0); // dev: amount must be non-zero
+	require(_class_ctoken.transferFrom(msg.sender, address(this), amount)); // dev: inbound transfer of ctokens failed
+	uint256 mint_amount = amount * 1000_000_000_000 * SERIES_MARGIN_RATIO_DIVISOR / SERIES_MARGIN_RATIO_MULTIPLIER;
+	require(FutureToken(_class_series_short).mint(msg.sender, mint_amount)); // dev: minting short tokens failed
+	require(FutureToken(_class_series_long).mint(msg.sender, mint_amount)); // dev: minting long tokens failed
+    }
+
+    function redeem(uint256 burn_amount) external returns (bool) {
+	IERC20 class_ctoken = _class_ctoken;
+	FutureToken class_series_short = _class_series_short;
+	FutureToken class_series_long = _class_series_long;
+	require(burn_amount > 0); // dev: amount must be non-zero
+	require(class_series_short.burn(msg.sender, burn_amount)); // dev: burning short tokens failed
+	require(class_series_long.burn(msg.sender, burn_amount)); // dev: burning long tokens failed
+	uint256 amount = burn_amount * SERIES_MARGIN_RATIO_MULTIPLIER / SERIES_MARGIN_RATIO_DIVISOR / 1000_000_000_000;
+	require(class_ctoken.transfer(msg.sender, amount)); // dev: outbound transfer of ctokens failed
+    }
 }
 
 abstract contract FutureTokenSeries is
@@ -115,8 +143,8 @@ abstract contract FutureTokenSeries is
         return _series_symbol;
     }
 
-    function decimals() external view override onlyIfSeries returns (uint8) {
-        return _series_decimal;
+    function decimals() public pure override /*onlyIfSeries*/ returns (uint8) {
+        return SERIES_DECIMALS;
     }
 
     function totalSupply() external view override returns (uint256) {
@@ -164,12 +192,14 @@ abstract contract FutureTokenSeries is
         return true;
     }
 
-    function mint(address account, uint256 amount) external onlyIfSeries onlyClassOwner {
+    function mint(address account, uint256 amount) external onlyIfSeries onlyClassOwner returns (bool) {
         _mint(account, amount);
+	return true;
     }
 
-    function burn(address account, uint256 amount) external onlyIfSeries onlyClassOwner {
+    function burn(address account, uint256 amount) external onlyIfSeries onlyClassOwner returns (bool) {
         _burn(account, amount);
+	return true;
     }
 
     function _approve(address owner, address spender, uint256 amount) private {
@@ -221,11 +251,7 @@ abstract contract FutureTokenSeries is
 }
 
 contract FutureToken is
-    FutureTokenBaseData,
-    FutureTokenBase,
-    FutureTokenClassData,
     FutureTokenClass,
-    FutureTokenSeriesData,
     FutureTokenSeries
  {
      using Address for address;
@@ -253,31 +279,39 @@ contract FutureToken is
 	 return bytes8(uint64(y));
      }
  
-     function initializeChild(uint256 expiry, InstanceType instance_type) external {
+     function initializeChild(IERC20Metadata ctoken, uint256 expiry, uint256 margin_ratio, InstanceType instance_type) external {
 	 require(instance_type == InstanceType.Long
 		 || instance_type == InstanceType.Short
 		 || instance_type == InstanceType.Class); // dev: must be long, short or class
-	 require(address(this) == _getAddress(msg.sender, expiry, instance_type)); // dev: must be called by base
+	 require(address(this) == _getAddress(msg.sender, ctoken, expiry, instance_type)); // dev: must be called by base
+	 require(address(ctoken) != address(0)); // dev: ctoken must be non-zero
+	 require(expiry >= block.number); // dev: expiry must not be in past
+	 require(expiry == calcExpiry(expiry)); // dev: expiry must be a valid expiry
+	 require(margin_ratio > 0); // dev: margin ratio must be non-zero
 	 require(_instance_type == InstanceType.None); // dev: instance type must be uninitialized
 	 require(_owner == address(0)); // dev: owner must be uninitialized
 	 require(_class_expiry == 0); // dev: class expiry must be uninitialized
-	 require(_class_series_short == address(0)); // dev: class series short must be uninitialized
-	 require(_class_series_long == address(0)); // dev: class series long must be uninitialized
-	 require(_series_class_owner == address(0)); // dev: series class owner must be uninitialized
-	 require(_series_decimal == 0); // dev: series decimal must be uninitialized
+	 require(address(_class_series_short) == address(0)); // dev: class series short must be uninitialized
+	 require(address(_class_series_long) == address(0)); // dev: class series long must be uninitialized
+	 require(address(_series_class_owner) == address(0)); // dev: series class owner must be uninitialized
+	 //	 require(_series_decimal == 0); // dev: series decimal must be uninitialized
 	 require(_series_totalSupply == 0); // dev: series total supply must be uninitialized
 	 _instance_type = instance_type;
+	 _class_ctoken = ctoken;
 	 _class_expiry = expiry;
+         //      _class_margin_ratio = margin_ratio;
 	 if (instance_type == InstanceType.Class) {
-	     _class_series_short = _getAddress(msg.sender, expiry, InstanceType.Short);
-	     _class_series_long = _getAddress(msg.sender, expiry, InstanceType.Long);
+	     _class_series_short = FutureToken(_getAddress(msg.sender, ctoken, expiry, InstanceType.Short));
+	     _class_series_long = FutureToken(_getAddress(msg.sender, ctoken, expiry, InstanceType.Long));
 	 } else {
-	     _series_class_owner = _getAddress(msg.sender, expiry, InstanceType.Class);
-	     _series_symbol = string(abi.encodePacked("CVX/cUSDC/0x",
+	     _series_class_owner = _getAddress(msg.sender, ctoken, expiry, InstanceType.Class);
+	     _series_symbol = string(abi.encodePacked("CVX/",
+						      IERC20Metadata(ctoken).symbol(),
+						      "/0x",
 						      uint32ToHex(uint32(expiry)),
 						      instance_type == InstanceType.Short ? "/S" :
 						      instance_type == InstanceType.Long ? "/L" : "/X"));
-	     _series_decimal = 8;
+	     //	     _series_decimal = SERIES_DECIMAL;
 	 }
      }
 
@@ -291,42 +325,42 @@ contract FutureToken is
 	 return calcExpiry(after_blocks);
      }
 
-     function getExpiryClassLongShort(uint256 expiry) external view onlyIfBase returns (address, address, address) {
-	 address addr_class = _getAddress(address(this), expiry, InstanceType.Class);
-	 address addr_long = _getAddress(address(this), expiry, InstanceType.Long);
-	 address addr_short = _getAddress(address(this), expiry, InstanceType.Short);
+     function getExpiryClassLongShort(IERC20Metadata ctoken, uint256 expiry) external view onlyIfBase returns (address, address, address) {
+	 address addr_class = _getAddress(address(this), ctoken, expiry, InstanceType.Class);
+	 address addr_long = _getAddress(address(this), ctoken, expiry, InstanceType.Long);
+	 address addr_short = _getAddress(address(this), ctoken, expiry, InstanceType.Short);
 	 if (!addr_class.isContract()) addr_class = address(0);
 	 if (!addr_long.isContract()) addr_long = address(0);
 	 if (!addr_short.isContract()) addr_short = address(0);
 	 return (addr_class, addr_long, addr_short);
      }
 
-     function getOrCreateExpiryClassLongShort(uint256 expiry) external onlyIfBase returns (address, address, address) {
-	 address addr_class = _getAddress(address(this), expiry, InstanceType.Class);
-	 address addr_long = _getAddress(address(this), expiry, InstanceType.Long);
-	 address addr_short = _getAddress(address(this), expiry, InstanceType.Short);
+     function getOrCreateExpiryClassLongShort(IERC20Metadata ctoken, uint256 expiry) external onlyIfBase returns (address, address, address) {
+	 require(address(ctoken) != address(0)); // dev: ctoken must be non-zero
+	 require(expiry >= block.number); // dev: expiry must not be in past
+	 address addr_class = _getAddress(address(this), ctoken, expiry, InstanceType.Class);
+	 address addr_long = _getAddress(address(this), ctoken, expiry, InstanceType.Long);
+	 address addr_short = _getAddress(address(this), ctoken, expiry, InstanceType.Short);
 	 if (!addr_class.isContract()) {
-	     require(addr_class == Clones.cloneDeterministic(address(this), _getAddressSalt(expiry, InstanceType.Class))); // dev: clone created at unexpected address
-	     FutureToken(addr_class).initializeChild(expiry, InstanceType.Class);
+	     require(addr_class == Clones.cloneDeterministic(address(this), _getAddressSalt(ctoken, expiry, InstanceType.Class))); // dev: clone created at unexpected address
+	     FutureToken(addr_class).initializeChild(ctoken, expiry, SERIES_MARGIN_RATIO_MULTIPLIER, InstanceType.Class);
 	 }
 	 if (!addr_long.isContract()) {
-	     require(addr_long == Clones.cloneDeterministic(address(this), _getAddressSalt(expiry, InstanceType.Long))); // dev: clone created at unexpected address
-	     FutureToken(addr_long).initializeChild(expiry, InstanceType.Long);
+	     require(addr_long == Clones.cloneDeterministic(address(this), _getAddressSalt(ctoken, expiry, InstanceType.Long))); // dev: clone created at unexpected address
+	     FutureToken(addr_long).initializeChild(ctoken, expiry, SERIES_MARGIN_RATIO_MULTIPLIER, InstanceType.Long);
 	 }
 	 if (!addr_short.isContract()) {
-	     require(addr_short == Clones.cloneDeterministic(address(this), _getAddressSalt(expiry, InstanceType.Short))); // dev: clone created at unexpected address
-	     FutureToken(addr_short).initializeChild(expiry, InstanceType.Short);
+	     require(addr_short == Clones.cloneDeterministic(address(this), _getAddressSalt(ctoken, expiry, InstanceType.Short))); // dev: clone created at unexpected address
+	     FutureToken(addr_short).initializeChild(ctoken, expiry, SERIES_MARGIN_RATIO_MULTIPLIER, InstanceType.Short);
 	 }
 	 return (addr_class, addr_long, addr_short);
      }
 
-     function _getAddressSalt(uint256 expiry, InstanceType instance_type) pure internal returns (bytes32) {
-	 expiry <<= 8;
-	 expiry |= uint8(instance_type);
-	 return bytes32(expiry);
+     function _getAddressSalt(IERC20Metadata ctoken, uint256 expiry, InstanceType instance_type) pure internal returns (bytes32) {
+	 return keccak256(abi.encodePacked(ctoken, expiry, uint8(instance_type)));
      }
 
-     function _getAddress(address main, uint256 expiry, InstanceType instance_type) pure internal returns (address) {
-	 return Clones.predictDeterministicAddress(main, _getAddressSalt(expiry, instance_type), main);
+     function _getAddress(address main, IERC20Metadata ctoken, uint256 expiry, InstanceType instance_type) pure internal returns (address) {
+	 return Clones.predictDeterministicAddress(main, _getAddressSalt(ctoken, expiry, instance_type), main);
      }
 }
