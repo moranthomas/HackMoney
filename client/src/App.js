@@ -4,7 +4,10 @@ import Navbar from './layout/Navbar';
 import Banner from './layout/Banner';
 import './App.css';
 import getWeb3 from "./getWeb3";
-import ProxyWalletContract from "./artifacts/deployments/ProxyWalletContract.json";
+//my brownie instance drops in a "map" file when deployed on brownie
+import map from "./artifacts/deployments/map.json";
+//and the abi is found under contracts within ProxyWallet.json
+import ProxyWallet from "./artifacts/contracts/ProxyWallet.json";
 import ScriptTag from 'react-script-tag';
 import Compound from '@compound-finance/compound-js';
 // const Compound = props => (
@@ -26,7 +29,6 @@ class App extends Component {
     cUSDCxr: ''
   };
 
-
   componentDidMount = async () => {
     try {
       const web3 = await getWeb3();                     // Get network provider and web3 instance.
@@ -41,10 +43,9 @@ class App extends Component {
       this.setState({ accounts: userAccounts });
       this.setState({ displayAccount: displayAccount });
       this.setState({ networkId: networkId });
-
-      const ProxyWalletAddress = '0x4826533B4897376654Bb4d4AD88B7faFD0C98528'
+      const ProxyWalletAddress = map.dev.ProxyWallet.toString();
       const ProxyWalletInstance = new web3.eth.Contract(
-        ProxyWalletContract.abi,
+        ProxyWallet.abi,
         ProxyWalletAddress,
       );
 
@@ -78,15 +79,16 @@ class App extends Component {
         cusdcRate : Math.pow(10,decimals.cusdcRate)
       }
 
+      //returns the current exchange rate from cUSDC contract
+      async function cUSDCExchangeRate () {
+      const xr = await cUsdcContract.methods.exchangeRateCurrent().call()/scaler.cusdcRate;
+      return xr
+      }
+
       const cUSDCxr = await cUSDCExchangeRate();
       this.setState({ cUSDCxr: parseFloat(cUSDCxr).toFixed(4)});
 
 
-      //returns the current exchange rate from cUSDC contract
-      async function cUSDCExchangeRate () {
-        const xr = await cUsdcContract.methods.exchangeRateCurrent().call()/scaler.cusdcRate;
-        return xr
-      }
 
       //here we build the USDC contract and ABI
       var usdcAddress = config.usdcAddress;
