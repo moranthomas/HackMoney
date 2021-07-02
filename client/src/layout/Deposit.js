@@ -32,9 +32,7 @@ export class Deposit extends Component {
                 <FontAwesomeIcon icon={faSync} size="2x" spin />
                 <div className="wrapper">
                     <div className="box a">
-                <div class="wrapper">
-                    <div class="box a">
-                    <Select>
+                        <Select>
                             <option value="" hidden>
                             Currency
                             </option>
@@ -44,12 +42,9 @@ export class Deposit extends Component {
                         </Select>
                     </div>
                     <div className="box c">
-
                             Value of wallet
-                        
                     </div>
                     <div className="box d">
-
                             <Select>
                                 <option value="" hidden>
                                 Select Maturity
@@ -61,9 +56,7 @@ export class Deposit extends Component {
                             </Select>
                     </div>
                     <div className="box e">
-
                             Estimated Maturity Date/Time
-
                     </div>
                 </div>
 
@@ -72,16 +65,12 @@ export class Deposit extends Component {
                 </div>
 
                 <div className="implied-rate-box">
-
                      Estimated Fixed Implied Rate: 26%
-
                 </div>
-
+                
                 <div className="lock-in-fixed-rate">
-
                      Lock in Fixed Rate
                 </div>
-
             </div>
         )
     }

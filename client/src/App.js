@@ -9,8 +9,6 @@ import map from "./artifacts/deployments/map.json";
 //and the abi is found under contracts within ProxyWallet.json
 import ProxyWallet from "./artifacts/contracts/ProxyWallet.json";
 import Compound from '@compound-finance/compound-js';
-// const Compound = props => (
-  //<ScriptTag type="text/javascript" src="https://cdn.jsdelivr.net/npm/@compound-finance/compound-js@0.2.5/dist/browser/compound.min.js" />);
 const config = require('./config/config_mainnet.json');
 
 class App extends Component {
