@@ -30,10 +30,10 @@ export class Deposit extends Component {
             <div className="container-borrow">
 
                 <FontAwesomeIcon icon={faSync} size="2x" spin />
-
                 <div className="wrapper">
                     <div className="box a">
-
+                <div class="wrapper">
+                    <div class="box a">
                     <Select>
                             <option value="" hidden>
                             Currency
@@ -59,7 +59,6 @@ export class Deposit extends Component {
                                 <option value="3">Quarter 3</option>
                                 <option value="4">Quarter 4</option>
                             </Select>
-
                     </div>
                     <div className="box e">
 
@@ -81,7 +80,6 @@ export class Deposit extends Component {
                 <div className="lock-in-fixed-rate">
 
                      Lock in Fixed Rate
-
                 </div>
 
             </div>

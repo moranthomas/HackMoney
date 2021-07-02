@@ -6,7 +6,6 @@ import Deposit from './Deposit';
 import Borrow from './Borrow.js';
 import Home from './Home.js';
 
-
 export default function Navbar(props) {
 
     // Declare a new state variable, which we'll call "fromAccount"
@@ -28,6 +27,7 @@ export default function Navbar(props) {
                 {/* <Route path="/home" component={Home} /> */}
                 <Route path="/deposit" component={Deposit} />
                 <Route path="/borrow" component={Borrow} />
+
 
             </div>
             <div style={connectorStyle}>
