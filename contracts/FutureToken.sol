@@ -251,11 +251,7 @@ abstract contract FutureTokenSeries is
 }
 
 contract FutureToken is
-    FutureTokenBaseData,
-    FutureTokenBase,
-    FutureTokenClassData,
     FutureTokenClass,
-    FutureTokenSeriesData,
     FutureTokenSeries
  {
      using Address for address;
