@@ -5,10 +5,13 @@ import Banner from './layout/Banner';
 import './App.css';
 import getWeb3 from "./getWeb3";
 //my brownie instance drops in a "map" file when deployed on brownie
-
 import map from "./artifacts/deployments/map.json";
 //and the abi is found under contracts within ProxyWallet.json
 import ProxyWallet from "./artifacts/contracts/ProxyWallet.json";
+import ScriptTag from 'react-script-tag';
+import Compound from '@compound-finance/compound-js';
+// const Compound = props => (
+  //<ScriptTag type="text/javascript" src="https://cdn.jsdelivr.net/npm/@compound-finance/compound-js@0.2.5/dist/browser/compound.min.js" />);
 
 const config = require('./config/config_mainnet.json');
 
@@ -47,6 +50,12 @@ class App extends Component {
       );
 
       console.log(ProxyWalletInstance);
+
+      //const compound = new Compound(window.ethereum);
+      this.CompoundSupplyRatePerBlock();
+      const cUsdtAddress = Compound.util.getAddress(Compound.cUSDT);
+      console.log('Compound cUsdtAddress: ' + cUsdtAddress);
+
       // const getBalanceResponse = await ProxyWalletInstance.methods.getContractBalanceOfEther().call();
       // console.log('getBalanceResponse: ' + getBalanceResponse );
 
@@ -100,6 +109,21 @@ class App extends Component {
   };
 
 
+  CompoundSupplyRatePerBlock() {
+
+    const cUsdtAddress = Compound.util.getAddress(Compound.cUSDT);
+      (async function() {
+        let supplyRatePerBlock = await Compound.eth.read(
+          cUsdtAddress,
+          'function supplyRatePerBlock() returns (uint)',
+          [], // [optional] parameters
+          {}  // [optional] call options, provider, network, ethers.js "overrides"
+        );
+        console.log('USDT supplyRatePerBlock:', supplyRatePerBlock.toString());
+
+      })().catch(console.error);
+  }
+
 
   render() {
     return (
@@ -111,6 +135,12 @@ class App extends Component {
                 web3={this.state.web3}
                 cUSDCxr={this.state.cUSDCxr}
                 networkId={this.state.networkId} />
+
+                <button onClick={async () => {
+                  console.log(this.CompoundSupplyRatePerBlock())
+                   }} >
+                    Get Compound USDT rate
+                </button>
               <Banner />
             </Router>
         </div>

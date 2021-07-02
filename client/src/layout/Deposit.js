@@ -31,8 +31,8 @@ export class Deposit extends Component {
 
                 <FontAwesomeIcon icon={faSync} size="2x" spin />
 
-                <div class="wrapper">
-                    <div class="box a">
+                <div className="wrapper">
+                    <div className="box a">
 
                     <Select>
                             <option value="" hidden>
@@ -43,13 +43,13 @@ export class Deposit extends Component {
                             <option value="3">ETH</option>
                         </Select>
                     </div>
-                    <div class="box c">
-                        <card>
+                    <div className="box c">
+
                             Value of wallet
-                        </card>
+                        
                     </div>
-                    <div class="box d">
-                        <card>
+                    <div className="box d">
+
                             <Select>
                                 <option value="" hidden>
                                 Select Maturity
@@ -59,29 +59,29 @@ export class Deposit extends Component {
                                 <option value="3">Quarter 3</option>
                                 <option value="4">Quarter 4</option>
                             </Select>
-                        </card>
+
                     </div>
-                    <div class="box e">
-                        <card>
+                    <div className="box e">
+
                             Estimated Maturity Date/Time
-                        </card>
+
                     </div>
                 </div>
 
-                <div class="info-icon-box">
+                <div className="info-icon-box">
                     <FontAwesomeIcon icon={faInfoCircle} size="2x" />
                 </div>
 
-                <div class="implied-rate-box">
-                    <card>
+                <div className="implied-rate-box">
+
                      Estimated Fixed Implied Rate: 26%
-                    </card>
+
                 </div>
 
-                <div class="lock-in-fixed-rate">
-                    <card>
+                <div className="lock-in-fixed-rate">
+
                      Lock in Fixed Rate
-                    </card>
+
                 </div>
 
             </div>

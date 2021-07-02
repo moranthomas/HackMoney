@@ -30,6 +30,10 @@ class Token:
         return self.__contract.address
 
     @property
+    def contract(self) -> web3.contract.Contract:
+        return self.__contract
+
+    @property
     def symbol(self) -> str:
         if self.__symbol is None:
             self.__symbol = self.__contract.functions.symbol().call()
