@@ -54,18 +54,21 @@ class App extends Component {
 
 
       const ProxyWalletAddress = map.dev.ProxyWallet.toString();
-      const ProxyWalletAbi = JSON.stringify(ProxyWallet.abi);
+      const ProxyWalletAbi = ProxyWallet.abi;
 
-      // const ProxyWalletInstance = new web3.eth.Contract(
-      //   ProxyWalletAbi,
-      //   ProxyWalletAddress,
-      // );
+      const ProxyWalletInstance = new web3.eth.Contract(
+        ProxyWalletAbi,
+        ProxyWalletAddress,
+      );
 
-      // console.log(ProxyWalletInstance);
-      // const proxyClone = await ProxyWalletInstance.methods.getOrCreateClone().call();
-      // console.log('proxyClone: ' + JSON.stringify(proxyClone) );
-      // const getBalanceResponse = await ProxyWalletInstance.methods.getContractBalanceOfEther().call();
-      // console.log('getBalanceResponse: ' + getBalanceResponse );
+      console.log(ProxyWalletInstance);
+      const proxyClone = await ProxyWalletInstance.methods.getOrCreateClone().call();
+      const proxyAddress = await ProxyWalletInstance.methods.proxyAddress().call();
+      const proxyCloneAddress = await ProxyWalletInstance.methods.getCloneAddress().call();
+
+      console.log('proxyClone: ' + JSON.stringify(proxyClone) );
+      console.log('proxyAddress: ' + proxyAddress );
+      console.log('proxyWalletCloneAddress: ' + proxyCloneAddress );
 
       this.CompoundSupplyRatePerBlock();
       const cUsdtAddress = Compound.util.getAddress(Compound.cUSDT);
@@ -134,11 +137,11 @@ class App extends Component {
                 networkId={this.state.networkId}
                 chainId={this.state.chainId} />
 
-                <button onClick={async () => {
+                {/* <button onClick={async () => {
                   console.log(this.CompoundSupplyRatePerBlock())
                    }} >
                     Get Compound USDT rate
-                </button>
+                </button> */}
 
                 <OnboardingButton></OnboardingButton>
 
