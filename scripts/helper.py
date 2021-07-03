@@ -162,4 +162,6 @@ def main():
     
     #fund development account with ETH
     accounts[2].transfer( to='0x08076ef44737edC609E1dDbb05cfe142cA1ceF17', amount=100*1e18)
+    #create account object so can interact with this account in brownie
+    accounts.at('0x08076ef44737edC609E1dDbb05cfe142cA1ceF17', force=True)
     
