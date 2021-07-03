@@ -55,7 +55,6 @@ class App extends Component {
 
       const ProxyWalletAddress = map.dev.ProxyWallet.toString();
       const ProxyWalletAbi = JSON.stringify(ProxyWallet.abi);
-      //const ProxyWalletContractAbi = ProxyWalletContract.abi;
 
       // const ProxyWalletInstance = new web3.eth.Contract(
       //   ProxyWalletAbi,
@@ -65,15 +64,12 @@ class App extends Component {
       // console.log(ProxyWalletInstance);
       // const proxyClone = await ProxyWalletInstance.methods.getOrCreateClone().call();
       // console.log('proxyClone: ' + JSON.stringify(proxyClone) );
+      // const getBalanceResponse = await ProxyWalletInstance.methods.getContractBalanceOfEther().call();
+      // console.log('getBalanceResponse: ' + getBalanceResponse );
 
       this.CompoundSupplyRatePerBlock();
       const cUsdtAddress = Compound.util.getAddress(Compound.cUSDT);
       console.log('Compound cUsdtAddress: ' + cUsdtAddress);
-
-      // const getBalanceResponse = await ProxyWalletInstance.methods.getContractBalanceOfEther().call();
-      // console.log('getBalanceResponse: ' + getBalanceResponse );
-
-
 
       // cUSDC address and ABI
       const cUsdcAddress = config.cUsdcAddress;
@@ -94,20 +90,12 @@ class App extends Component {
 
       //returns the current exchange rate from cUSDC contract
       async function cUSDCExchangeRate () {
-      const xr = await cUsdcContract.methods.exchangeRateCurrent().call()/scaler.cusdcRate;
-      return xr
+        const xr = await cUsdcContract.methods.exchangeRateCurrent().call()/scaler.cusdcRate;
+        return xr
       }
 
       const cUSDCxr = await cUSDCExchangeRate();
       this.setState({ cUSDCxr: parseFloat(cUSDCxr).toFixed(4)});
-
-
-
-      //here we build the USDC contract and ABI
-      var usdcAddress = config.usdcAddress;
-      const usdcAbi = config.usdcAbi;
-      const usdcContract = new web3.eth.Contract(usdcAbi, usdcAddress);
-
 
       //Set web3, accounts, and contract to the state - for more flexiblility.
       //this.setState({ web3, accounts, contract: instance }, this.runExample);
@@ -122,7 +110,6 @@ class App extends Component {
   };
 
   CompoundSupplyRatePerBlock() {
-
     const cUsdtAddress = Compound.util.getAddress(Compound.cUSDT);
       (async function() {
         let supplyRatePerBlock = await Compound.eth.read(
@@ -132,10 +119,8 @@ class App extends Component {
           {}  // [optional] call options, provider, network, ethers.js "overrides"
         );
         console.log('USDT supplyRatePerBlock:', supplyRatePerBlock.toString());
-
       })().catch(console.error);
   }
-
 
   render() {
     return (
