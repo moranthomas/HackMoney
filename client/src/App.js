@@ -11,6 +11,10 @@ import Compound from '@compound-finance/compound-js';
 import MetaMaskOnboarding from '@metamask/onboarding'
 import { OnboardingButton } from './components/OnboardingButton';
 
+//here are the changes as far as pwclone goes in terms of imports
+import futureTokenClassJson from "./artifacts/contracts/FutureTokenClass.json"; //import futureTokenClass Abi
+import futureTokenSeriesJson from "./artifacts/contracts/FutureTokenSeries.json"; //import futureTokenClass Abi
+
 const config = require('./config/config_mainnet.json');
 
 class App extends Component {
@@ -111,7 +115,27 @@ class App extends Component {
       //Make sure to have run the xyz script!
       const blockNumber = await web3.eth.getBlockNumber(); //get the blockNumber to calculate the nextExpiry
       const nextExpiry = await FutureTokenInstance.methods.calcExpiry(blockNumber).call(); //find out what the next Expiry block is
-      const futureTokens = await FutureTokenInstance.methods.getExpiryClassLongShort(cUsdcAddress,nextExpiry).call(); //with that and the cUSDC token address, we can get the three tokens
+      var futureTokens = []
+      try{
+        futureTokens = await FutureTokenInstance.methods.getExpiryClassLongShort(cUsdcAddress,nextExpiry).call(); //with that and the cUSDC token address, we can get the three tokens
+
+        //we have the token address, so now lets create future token class contract instances
+        //const futureTokenClassAbi = futureTokenClassJson.abi;
+        const futureTokenClass = new web3.eth.Contract(
+          futureTokenClassJson.abi,
+          futureTokens[0].toString(),
+        )
+        //lets make futureTokenShort contract instance too
+        const futureTokenShort = new web3.eth.Contract(
+          futureTokenSeriesJson.abi,
+          futureTokens[2].toString(),
+        )
+      }
+        catch(error){
+          console.log('looks like the future tokens were not instantiated')
+        }
+
+
 
       console.log('future class ' + futureTokens[0].toString());
 
