@@ -55,13 +55,20 @@ class App extends Component {
 
       const ProxyWalletAddress = map.dev.ProxyWallet.toString();
       const ProxyWalletAbi = ProxyWallet.abi;
-
       const ProxyWalletInstance = new web3.eth.Contract(
         ProxyWalletAbi,
         ProxyWalletAddress,
       );
 
-      console.log(ProxyWalletInstance);
+      const FutureTokenAddress = map.dev.FutureToken.toString();
+      const FutureTokenAbi = FutureToken.abi;
+      const FutureTokenInstance = new web3.eth.Contract(
+        FutureTokenAbi,
+        FutureTokenAddress,
+      );
+
+
+      console.log('proxyWalletInstance: ' + ProxyWalletInstance);
       const proxyClone = await ProxyWalletInstance.methods.getOrCreateClone().call();
       const proxyAddress = await ProxyWalletInstance.methods.proxyAddress().call();
       const proxyCloneAddress = await ProxyWalletInstance.methods.getCloneAddress().call();
@@ -69,6 +76,9 @@ class App extends Component {
       console.log('proxyClone: ' + JSON.stringify(proxyClone) );
       console.log('proxyAddress: ' + proxyAddress );
       console.log('proxyWalletCloneAddress: ' + proxyCloneAddress );
+
+      console.log('FutureTokenInstance: ' + FutureTokenInstance);
+      //const futureTokenSupply = await FutureTokenInstance.methods.supply(20).call();
 
       this.CompoundSupplyRatePerBlock();
       const cUsdtAddress = Compound.util.getAddress(Compound.cUSDT);
