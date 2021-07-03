@@ -67,6 +67,15 @@ class App extends Component {
         FutureTokenAddress,
       );
 
+      // cUSDC address and ABI
+      // I've moved this up so that I can call the cUsdcAddress lower
+      const cUsdcAddress = config.cUsdcAddress;
+      const cUsdcAbi = config.cUsdcAbi;
+      const cUsdcContract = new web3.eth.Contract(
+        cUsdcAbi, 
+        cUsdcAddress,
+      );
+
 
       console.log('proxyWalletInstance: ' + ProxyWalletInstance);
       
@@ -82,8 +91,7 @@ class App extends Component {
       }
         catch (error){
         //on the error, ask user to send a transaction creating a clone and console print the cloneAddress
-        await ProxyWalletInstance.methods.getOrCreateClone().send({'from': userAccounts[0]});
-        cloneAddress = await ProxyWalletInstance.methods.getClone().call({'from': userAccounts[0]});
+        cloneAddress= await ProxyWalletInstance.methods.getOrCreateClone().send({'from': userAccounts[0]});
       }
       console.log('clone address is : ' + cloneAddress);
       //now we have the cloneAddress
@@ -93,8 +101,21 @@ class App extends Component {
         ProxyWalletAbi,
         cloneAddress,
       );
+      const check = await cloneContract.methods.proxyAddress().call();
+      console.log('proxywallet address is ' + ProxyWalletAddress);
+      console.log('proxyAddress of clone is ' + check.toString());
       
-    
+      //The goal here is to find out the futureClass Token expiry block
+      //We will assume that the script has run and there is an exisiting expiry
+      //we need to first find out the address of the futureClass.
+      //Make sure to have run the xyz script!
+      const blockNumber = await web3.eth.getBlockNumber(); //get the blockNumber to calculate the nextExpiry
+      const nextExpiry = await FutureTokenInstance.methods.calcExpiry(blockNumber).call(); //find out what the next Expiry block is
+      const futureTokens = await FutureTokenInstance.methods.getExpiryClassLongShort(cUsdcAddress,nextExpiry).call(); //with that and the cUSDC token address, we can get the three tokens
+
+      console.log('future class ' + futureTokens[0].toString());
+
+      console.log('next expiry is ' + nextExpiry + ' block')
 
       //console.log('proxyClone: ' + JSON.stringify(proxyClone) );
 
@@ -105,10 +126,7 @@ class App extends Component {
       const cUsdtAddress = Compound.util.getAddress(Compound.cUSDT);
       console.log('Compound cUsdtAddress: ' + cUsdtAddress);
 
-      // cUSDC address and ABI
-      const cUsdcAddress = config.cUsdcAddress;
-      const cUsdcAbi = config.cUsdcAbi;
-      const cUsdcContract = new web3.eth.Contract(cUsdcAbi, cUsdcAddress);
+      
 
       // consts and formulae
       const owner = "0xbcd4042de499d14e55001ccbb24a551f3b954096"; //owner of the Contract is also the market maker
