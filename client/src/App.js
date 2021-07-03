@@ -59,7 +59,7 @@ class App extends Component {
         ProxyWalletAbi,
         ProxyWalletAddress,
       );
-
+     
       const FutureTokenAddress = map.dev.FutureToken.toString();
       const FutureTokenAbi = FutureToken.abi;
       const FutureTokenInstance = new web3.eth.Contract(
@@ -69,13 +69,34 @@ class App extends Component {
 
 
       console.log('proxyWalletInstance: ' + ProxyWalletInstance);
-      const proxyClone = await ProxyWalletInstance.methods.getOrCreateClone().call();
-      const proxyAddress = await ProxyWalletInstance.methods.proxyAddress().call();
-      const proxyCloneAddress = await ProxyWalletInstance.methods.getCloneAddress().call();
+      
+      //Goal is to create a clone contract instance
+      //this transaction gets or creates a clone.
+      //we should check if the userAccount already has a clone deployed
+      //declare a cloneAddress variable
+      var cloneAddress = '';
+      
+      try {
+        //try calling the getClone method. If there is no clone, then we will get an error
+        cloneAddress = await ProxyWalletInstance.methods.getClone().call({'from': userAccounts[0]});
+      }
+        catch (error){
+        //on the error, ask user to send a transaction creating a clone and console print the cloneAddress
+        await ProxyWalletInstance.methods.getOrCreateClone().send({'from': userAccounts[0]});
+        cloneAddress = await ProxyWalletInstance.methods.getClone().call({'from': userAccounts[0]});
+      }
+      console.log('clone address is : ' + cloneAddress);
+      //now we have the cloneAddress
+      //lets create a clone web3 contract instance that we can work with
+      //the cloneContract will have the same abi as the ProxyWalletInstance
+      const cloneContract = new web3.eth.Contract(
+        ProxyWalletAbi,
+        cloneAddress,
+      );
+      
+    
 
-      console.log('proxyClone: ' + JSON.stringify(proxyClone) );
-      console.log('proxyAddress: ' + proxyAddress );
-      console.log('proxyWalletCloneAddress: ' + proxyCloneAddress );
+      //console.log('proxyClone: ' + JSON.stringify(proxyClone) );
 
       console.log('FutureTokenInstance: ' + FutureTokenInstance);
       //const futureTokenSupply = await FutureTokenInstance.methods.supply(20).call();
