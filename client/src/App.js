@@ -118,7 +118,8 @@ class App extends Component {
       var futureTokens = []
       try{
         futureTokens = await FutureTokenInstance.methods.getExpiryClassLongShort(cUsdcAddress,nextExpiry).call(); //with that and the cUSDC token address, we can get the three tokens
-
+        this.setState({expiryBlock: nextExpiry});//set state for the expiryBlock
+        this.setState({blocksToExpiry: nextExpiry-blockNumber}); //set State for blocksToExpiry
         //we have the token address, so now lets create future token class contract instances
         //const futureTokenClassAbi = futureTokenClassJson.abi;
         const futureTokenClass = new web3.eth.Contract(
@@ -208,7 +209,12 @@ class App extends Component {
                 web3={this.state.web3}
                 cUSDCxr={this.state.cUSDCxr}
                 networkId={this.state.networkId}
-                chainId={this.state.chainId} />
+                chainId={this.state.chainId} 
+                //pass blocksToExpiry and expiryBlock as props so that we can display it in the deposit page
+                blocksToExpiry={this.state.blocksToExpiry}
+                expiryBlock={this.state.expiryBlock}
+                />
+                
 
                 {/* <button onClick={async () => {
                   console.log(this.CompoundSupplyRatePerBlock())
