@@ -4,11 +4,13 @@ import Navbar from './layout/Navbar';
 import Banner from './layout/Banner';
 import './App.css';
 import getWeb3 from "./getWeb3";
-//my brownie instance drops in a "map" file when deployed on brownie
-import map from "./artifacts/deployments/map.json";
-//and the abi is found under contracts within ProxyWallet.json
-import ProxyWallet from "./artifacts/contracts/ProxyWallet.json";
+import map from "./artifacts/deployments/map.json";               // map gets created on brownie deploy
+import ProxyWallet from "./artifacts/contracts/ProxyWallet.json";   // for Abi
+import FutureToken from "./artifacts/contracts/FutureToken.json";   // for Abi
 import Compound from '@compound-finance/compound-js';
+import MetaMaskOnboarding from '@metamask/onboarding'
+import { OnboardingButton } from './components/OnboardingButton';
+
 const config = require('./config/config_mainnet.json');
 
 class App extends Component {
@@ -21,33 +23,49 @@ class App extends Component {
     accounts: '',
     displayAccount: '',
     networkId: '',
+    chainId: '',
     contract: null,
     cUSDCxr: ''
   };
 
+  isMetaMaskInstalled = () => MetaMaskOnboarding.isMetaMaskInstalled()
+
   componentDidMount = async () => {
     try {
+
+     // console.log('isMetaMaskInstalled() = '+ this.isMetaMaskInstalled());
+
       const web3 = await getWeb3();                     // Get network provider and web3 instance.
       this.setState({ web3: web3 });
 
       const userAccounts = await web3.eth.getAccounts();    // Use web3 to get the user's accounts.
       const networkId = await web3.eth.net.getId();         // Get the contract instance.
-      console.log("neteworkId: ", networkId);
+      const chainId = await web3.eth.getChainId()
+
+      console.log("networkId: ", networkId);
+      console.log("chainId: ", chainId);
       console.log("User Accounts:" , userAccounts);
 
       let displayAccount = userAccounts[0].substring(0,8);
       this.setState({ accounts: userAccounts });
       this.setState({ displayAccount: displayAccount });
       this.setState({ networkId: networkId });
+      this.setState({ chainId: chainId });
+
+
       const ProxyWalletAddress = map.dev.ProxyWallet.toString();
-      const ProxyWalletInstance = new web3.eth.Contract(
-        ProxyWallet.abi,
-        ProxyWalletAddress,
-      );
+      const ProxyWalletAbi = JSON.stringify(ProxyWallet.abi);
+      //const ProxyWalletContractAbi = ProxyWalletContract.abi;
 
-      console.log(ProxyWalletInstance);
+      // const ProxyWalletInstance = new web3.eth.Contract(
+      //   ProxyWalletAbi,
+      //   ProxyWalletAddress,
+      // );
 
-      //const compound = new Compound(window.ethereum);
+      // console.log(ProxyWalletInstance);
+      // const proxyClone = await ProxyWalletInstance.methods.getOrCreateClone().call();
+      // console.log('proxyClone: ' + JSON.stringify(proxyClone) );
+
       this.CompoundSupplyRatePerBlock();
       const cUsdtAddress = Compound.util.getAddress(Compound.cUSDT);
       console.log('Compound cUsdtAddress: ' + cUsdtAddress);
@@ -55,8 +73,7 @@ class App extends Component {
       // const getBalanceResponse = await ProxyWalletInstance.methods.getContractBalanceOfEther().call();
       // console.log('getBalanceResponse: ' + getBalanceResponse );
 
-      const proxyClone = await ProxyWalletInstance.methods.getOrCreateClone().call();
-      console.log('proxyClone: ' + JSON.stringify(proxyClone) );
+
 
       // cUSDC address and ABI
       const cUsdcAddress = config.cUsdcAddress;
@@ -92,7 +109,7 @@ class App extends Component {
       const usdcContract = new web3.eth.Contract(usdcAbi, usdcAddress);
 
 
-      // Set web3, accounts, and contract to the state - for more flexiblility.
+      //Set web3, accounts, and contract to the state - for more flexiblility.
       //this.setState({ web3, accounts, contract: instance }, this.runExample);
 
     } catch (error) {
@@ -129,13 +146,16 @@ class App extends Component {
                 displayAccount={this.state.displayAccount}
                 web3={this.state.web3}
                 cUSDCxr={this.state.cUSDCxr}
-                networkId={this.state.networkId} />
+                networkId={this.state.networkId}
+                chainId={this.state.chainId} />
 
                 <button onClick={async () => {
                   console.log(this.CompoundSupplyRatePerBlock())
                    }} >
                     Get Compound USDT rate
                 </button>
+
+                <OnboardingButton></OnboardingButton>
 
               <Banner />
             </Router>
