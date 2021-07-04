@@ -109,25 +109,33 @@ class App extends Component {
       //The goal here is to find out the futureClass Token expiry block
       //We will assume that the script has run and there is an exisiting expiry
       //we need to first find out the address of the futureClass.
-      //Make sure to have run the xyz script!
-      const blockNumber = await web3.eth.getBlockNumber(); //get the blockNumber to calculate the nextExpiry
-      const nextExpiry = await FutureTokenInstance.methods.calcExpiry(blockNumber).call(); //find out what the next Expiry block is
+      
+      //get the blockNumber to calculate the nextExpiry
+      const blockNumber = await web3.eth.getBlockNumber(); 
+      //find out what the next Expiry block is that is at least 1024 blocks from now
+      const nextExpiry = await FutureTokenInstance.methods.calcExpiryBlock(blockNumber + 1024).call(); 
+      
       var futureTokens = []
+
       try{
         futureTokens = await FutureTokenInstance.methods.getExpiryClassLongShort(cUsdcAddress,nextExpiry).call(); //with that and the cUSDC token address, we can get the three tokens
-        this.setState({expiryBlock: nextExpiry});//set state for the expiryBlock
-        this.setState({blocksToExpiry: nextExpiry-blockNumber}); //set State for blocksToExpiry
+        
         //we have the token address, so now lets create future token class contract instances
         //const futureTokenClassAbi = futureTokenClassJson.abi;
         const futureTokenClass = new web3.eth.Contract(
-          futureTokenClassJson.abi,
+          FutureToken.abi,
           futureTokens[0].toString(),
         )
         //lets make futureTokenShort contract instance too
         const futureTokenShort = new web3.eth.Contract(
-          futureTokenSeriesJson.abi,
+          FutureToken.abi,
           futureTokens[2].toString(),
         )
+
+        const blocksToExpiry = await futureTokenClass.methods.blocksToExpiry().call();
+        this.setState({expiryBlock: nextExpiry});//set state for the expiryBlock
+        this.setState({blocksToExpiry: blocksToExpiry}); //set State for blocksToExpiry
+        console.log('blocks to expiry ' + blocksToExpiry);
       }
         catch(error){
           console.log('looks like the future tokens were not instantiated')
