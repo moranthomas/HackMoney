@@ -10,6 +10,8 @@ export default function Navbar(props) {
     // Declare a new state variable, which we'll call "fromAccount"
     const [fromAccount, setFromAccount] = useState();
     const [networkId, setNetworkId] = useState();
+    const b2x = props.blocksToExpiry;
+    const exb = props.expiryBlock;
 
     return (
         <header style={headerStyle}>
@@ -24,7 +26,7 @@ export default function Navbar(props) {
 
                 {/* <Route path="/" component={Home} /> */}
                 {/* <Route path="/home" component={Home} /> */}
-                <Route path="/deposit" component={Deposit} />
+                <Route path="/deposit" render={(props) => (<Deposit {...props} blocksToExpiry={b2x} expiryBlock={exb}/>)}/>
                 <Route path="/borrow" component={Borrow} />
 
 
@@ -33,7 +35,7 @@ export default function Navbar(props) {
                 <p style = {accountsStyle} >Account: {props.displayAccount}</p>
                 <p style = {accountsStyle} >Network ID: {props.networkId}</p>
                 <p style = {accountsStyle} >Chain ID: {props.chainId} </p>
-                <p style = {accountsStyle} >USDC Exchange Rate: {props.cUSDCxr} </p>
+                <p style = {accountsStyle} >USDC Exchange Rate: {props.cUSDCxr} </p>      
             </div>
 
         </header>

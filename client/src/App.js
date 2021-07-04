@@ -11,6 +11,10 @@ import Compound from '@compound-finance/compound-js';
 import MetaMaskOnboarding from '@metamask/onboarding'
 import { OnboardingButton } from './components/OnboardingButton';
 
+//here are the changes as far as pwclone goes in terms of imports
+import futureTokenClassJson from "./artifacts/contracts/FutureTokenClass.json"; //import futureTokenClass Abi
+import futureTokenSeriesJson from "./artifacts/contracts/FutureTokenSeries.json"; //import futureTokenClass Abi
+
 const config = require('./config/config_mainnet.json');
 
 class App extends Component {
@@ -59,7 +63,7 @@ class App extends Component {
         ProxyWalletAbi,
         ProxyWalletAddress,
       );
-
+     
       const FutureTokenAddress = map.dev.FutureToken.toString();
       const FutureTokenAbi = FutureToken.abi;
       const FutureTokenInstance = new web3.eth.Contract(
@@ -67,15 +71,78 @@ class App extends Component {
         FutureTokenAddress,
       );
 
+      // cUSDC address and ABI
+      // I've moved this up so that I can call the cUsdcAddress lower
+      const cUsdcAddress = config.cUsdcAddress;
+      const cUsdcAbi = config.cUsdcAbi;
+      const cUsdcContract = new web3.eth.Contract(
+        cUsdcAbi, 
+        cUsdcAddress,
+      );
+
 
       console.log('proxyWalletInstance: ' + ProxyWalletInstance);
-      const proxyClone = await ProxyWalletInstance.methods.getOrCreateClone().call();
-      const proxyAddress = await ProxyWalletInstance.methods.proxyAddress().call();
-      const proxyCloneAddress = await ProxyWalletInstance.methods.getCloneAddress().call();
+      
+      //Goal is to create a clone contract instance
+      //this transaction gets or creates a clone.
+      //we should check if the userAccount already has a clone deployed
+      //declare a cloneAddress variable
+      var cloneAddress = '';
+      
+      try {
+        //try calling the getClone method. If there is no clone, then we will get an error
+        cloneAddress = await ProxyWalletInstance.methods.getClone().call({'from': userAccounts[0]});
+      }
+        catch (error){
+        //on the error, ask user to send a transaction creating a clone and console print the cloneAddress
+        cloneAddress= await ProxyWalletInstance.methods.getOrCreateClone().send({'from': userAccounts[0]});
+      }
+      console.log('clone address is : ' + cloneAddress);
+      //now we have the cloneAddress
+      //lets create a clone web3 contract instance that we can work with
+      //the cloneContract will have the same abi as the ProxyWalletInstance
+      const cloneContract = new web3.eth.Contract(
+        ProxyWalletAbi,
+        cloneAddress,
+      );
+      const check = await cloneContract.methods.proxyAddress().call();
+      console.log('proxywallet address is ' + ProxyWalletAddress);
+      console.log('proxyAddress of clone is ' + check.toString());
+      
+      //The goal here is to find out the futureClass Token expiry block
+      //We will assume that the script has run and there is an exisiting expiry
+      //we need to first find out the address of the futureClass.
+      //Make sure to have run the xyz script!
+      const blockNumber = await web3.eth.getBlockNumber(); //get the blockNumber to calculate the nextExpiry
+      const nextExpiry = await FutureTokenInstance.methods.calcExpiry(blockNumber).call(); //find out what the next Expiry block is
+      var futureTokens = []
+      try{
+        futureTokens = await FutureTokenInstance.methods.getExpiryClassLongShort(cUsdcAddress,nextExpiry).call(); //with that and the cUSDC token address, we can get the three tokens
+        this.setState({expiryBlock: nextExpiry});//set state for the expiryBlock
+        this.setState({blocksToExpiry: nextExpiry-blockNumber}); //set State for blocksToExpiry
+        //we have the token address, so now lets create future token class contract instances
+        //const futureTokenClassAbi = futureTokenClassJson.abi;
+        const futureTokenClass = new web3.eth.Contract(
+          futureTokenClassJson.abi,
+          futureTokens[0].toString(),
+        )
+        //lets make futureTokenShort contract instance too
+        const futureTokenShort = new web3.eth.Contract(
+          futureTokenSeriesJson.abi,
+          futureTokens[2].toString(),
+        )
+      }
+        catch(error){
+          console.log('looks like the future tokens were not instantiated')
+        }
 
-      console.log('proxyClone: ' + JSON.stringify(proxyClone) );
-      console.log('proxyAddress: ' + proxyAddress );
-      console.log('proxyWalletCloneAddress: ' + proxyCloneAddress );
+
+
+      console.log('future class ' + futureTokens[0].toString());
+
+      console.log('next expiry is ' + nextExpiry + ' block')
+
+      //console.log('proxyClone: ' + JSON.stringify(proxyClone) );
 
       console.log('FutureTokenInstance: ' + FutureTokenInstance);
       //const futureTokenSupply = await FutureTokenInstance.methods.supply(20).call();
@@ -84,10 +151,7 @@ class App extends Component {
       const cUsdtAddress = Compound.util.getAddress(Compound.cUSDT);
       console.log('Compound cUsdtAddress: ' + cUsdtAddress);
 
-      // cUSDC address and ABI
-      const cUsdcAddress = config.cUsdcAddress;
-      const cUsdcAbi = config.cUsdcAbi;
-      const cUsdcContract = new web3.eth.Contract(cUsdcAbi, cUsdcAddress);
+      
 
       // consts and formulae
       const owner = "0xbcd4042de499d14e55001ccbb24a551f3b954096"; //owner of the Contract is also the market maker
@@ -145,7 +209,12 @@ class App extends Component {
                 web3={this.state.web3}
                 cUSDCxr={this.state.cUSDCxr}
                 networkId={this.state.networkId}
-                chainId={this.state.chainId} />
+                chainId={this.state.chainId} 
+                //pass blocksToExpiry and expiryBlock as props so that we can display it in the deposit page
+                blocksToExpiry={this.state.blocksToExpiry}
+                expiryBlock={this.state.expiryBlock}
+                />
+                
 
                 {/* <button onClick={async () => {
                   console.log(this.CompoundSupplyRatePerBlock())

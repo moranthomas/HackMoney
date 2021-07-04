@@ -1,9 +1,10 @@
 import React, { Component } from 'react'
 import styled from "styled-components";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faInfoCircle, faSync} from '@fortawesome/free-solid-svg-icons';
+import { faInfoCircle, faNetworkWired, faSync} from '@fortawesome/free-solid-svg-icons';
 export class Deposit extends Component {
 
+    
     render() {
         const Select = styled.select`
         width: 100%;
@@ -47,9 +48,9 @@ export class Deposit extends Component {
                     <div className="box d">
                             <Select>
                                 <option value="" hidden>
-                                Select Maturity
+                                Select Maturity Block
                                 </option>
-                                <option value="1">Quarter 1</option>
+                                <option value="1">{this.props.expiryBlock}</option>
                                 <option value="2">Quarter 2</option>
                                 <option value="3">Quarter 3</option>
                                 <option value="4">Quarter 4</option>

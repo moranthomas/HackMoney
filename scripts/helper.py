@@ -155,6 +155,13 @@ def main():
     UNISWAP = CONTRACTS['uniswap-v2-router']
     UNISWAP_FACTORY = CONTRACTS['uniswap-v2-factory']
     network = brownie.network.main.show_active()
+    CUSDC.exchangeRateCurrent({'from': accounts[0]}) #initialize the exchangeRateCurrent so that we don't get revert error
     if brownie.network.chain.id >= 1000 and (network == 'development' or network.find('fork') >= 0):
         FUT = FutureToken.deploy({'from': accounts[0]})
         PW = ProxyWallet.deploy({'from': accounts[0]})
+    
+    #fund development account with ETH
+    accounts[2].transfer( to='0x08076ef44737edC609E1dDbb05cfe142cA1ceF17', amount=100*1e18)
+    #create account object so can interact with this account in brownie
+    accounts.at('0x08076ef44737edC609E1dDbb05cfe142cA1ceF17', force=True)
+    
