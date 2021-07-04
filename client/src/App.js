@@ -56,15 +56,15 @@ class App extends Component {
       this.setState({ networkId: networkId });
       this.setState({ chainId: chainId });
 
-
-      const ProxyWalletAddress = map.dev.ProxyWallet.toString();
+      //when brownie deploys contracts with helper, it drops in more addresses
+      const ProxyWalletAddress = map.dev.ProxyWallet[map.dev.ProxyWallet.length-1].toString(); 
       const ProxyWalletAbi = ProxyWallet.abi;
       const ProxyWalletInstance = new web3.eth.Contract(
         ProxyWalletAbi,
         ProxyWalletAddress,
       );
      
-      const FutureTokenAddress = map.dev.FutureToken.toString();
+      const FutureTokenAddress = map.dev.FutureToken[map.dev.FutureToken.length-1].toString();
       const FutureTokenAbi = FutureToken.abi;
       const FutureTokenInstance = new web3.eth.Contract(
         FutureTokenAbi,
@@ -83,31 +83,28 @@ class App extends Component {
 
       console.log('proxyWalletInstance: ' + ProxyWalletInstance);
       
-      //Goal is to create a clone contract instance
-      //this transaction gets or creates a clone.
-      //we should check if the userAccount already has a clone deployed
-      //declare a cloneAddress variable
-      var cloneAddress = '';
+      //Goal is to create a wallet contract instance
+      //this transaction gets or creates a wallet if needed.
+      //we should check if the userAccount already has a wallet deployed
+      //declare a walletAddress variable
+      var walletAddress = '';
       
       try {
         //try calling the getClone method. If there is no clone, then we will get an error
-        cloneAddress = await ProxyWalletInstance.methods.getClone().call({'from': userAccounts[0]});
+        walletAddress = await ProxyWalletInstance.methods.getWallet().call({'from': userAccounts[0]});
       }
         catch (error){
         //on the error, ask user to send a transaction creating a clone and console print the cloneAddress
-        cloneAddress= await ProxyWalletInstance.methods.getOrCreateClone().send({'from': userAccounts[0]});
+        walletAddress= await ProxyWalletInstance.methods.createWalletIfNeeded().send({'from': userAccounts[0]});
       }
-      console.log('clone address is : ' + cloneAddress);
-      //now we have the cloneAddress
-      //lets create a clone web3 contract instance that we can work with
-      //the cloneContract will have the same abi as the ProxyWalletInstance
-      const cloneContract = new web3.eth.Contract(
+      console.log('wallet address is : ' + walletAddress);
+      //now we have the walletAddress
+      //lets create a wallet web3 contract instance that we can work with
+      //the walletContract will have the same abi as the ProxyWalletInstance
+      const walletContract = new web3.eth.Contract(
         ProxyWalletAbi,
-        cloneAddress,
+        walletAddress,
       );
-      const check = await cloneContract.methods.proxyAddress().call();
-      console.log('proxywallet address is ' + ProxyWalletAddress);
-      console.log('proxyAddress of clone is ' + check.toString());
       
       //The goal here is to find out the futureClass Token expiry block
       //We will assume that the script has run and there is an exisiting expiry
