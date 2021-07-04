@@ -7,8 +7,6 @@ const getWeb3 = () =>
       // Modern dapp browsers...
       if (window.ethereum) {
         const web3 = new Web3(window.ethereum);
-        console.log('modern dapp browser')
-        console.log(web3)
         try {
           console.log('requesting account access...')
           // Request account access if needed
@@ -16,6 +14,7 @@ const getWeb3 = () =>
           // Acccounts now exposed
           resolve(web3);
         } catch (error) {
+          console.log('error........' + error);
           reject(error);
         }
       }
