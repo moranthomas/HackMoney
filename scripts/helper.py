@@ -3,6 +3,7 @@ import json
 import decimal
 import lzma
 import base64
+import itertools
 from pathlib import Path
 from typing import Any, Mapping, Union
 import brownie
@@ -76,7 +77,14 @@ def load_mainnet_contracts(*args) -> Mapping[str, brownie.Contract]:
         with path.open() as fd:
             abi = json.load(fd)
         contract = brownie.Contract.from_abi(name=name, address=addr, abi=abi)
-        results[name] = contract
+        for suffix in ('', '-1', '-2', '-3'):
+            new_name = f'{name}{suffix}'
+            if new_name in results:
+                continue
+            results[new_name] = contract
+            break
+        else:
+            assert False, f'duplicate name: {name}'
     return results
 
 def create_uniswap_v2_pair_contract(name: str, address: Any) -> brownie.Contract:
@@ -142,21 +150,86 @@ class Wrapper:
         return decimal.Decimal(amount) / 10**self.decimals(contract)
 
 def main():
-    from brownie import FutureToken, ProxyWallet, accounts
-    global CONTRACTS
-    global WETH
-    global USDC
-    global CUSDC
-    global UNISWAP
+    from brownie import FutureToken, ProxyWallet, accounts, interface
     CONTRACTS = load_mainnet_contracts()
     WETH = CONTRACTS['token-weth']
     USDC = CONTRACTS['token-usdc']
+    DAI = CONTRACTS['token-dai']
     CETH = CONTRACTS['compound-ceth']
     CUSDC = CONTRACTS['compound-cusdc']
+    CDAI = CONTRACTS['compound-cdai']
     COMPTROLLER = CONTRACTS['compound-comptroller']
     UNISWAP = CONTRACTS['uniswap-v2-router']
     UNISWAP_FACTORY = CONTRACTS['uniswap-v2-factory']
+
+    # Make sure we have the later version of DAI
+    assert CDAI.address == '0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643'
+    assert DAI.address == '0x6B175474E89094C44Da98b954EedeAC495271d0F'
+
     network = brownie.network.main.show_active()
     if brownie.network.chain.id >= 1000 and (network == 'development' or network.find('fork') >= 0):
         FUT = FutureToken.deploy({'from': accounts[0]})
         PW = ProxyWallet.deploy(FUT, COMPTROLLER, UNISWAP, {'from': accounts[0]})
+        PW.addCEtherToken(CETH, {'from': accounts[0]})
+        PW.addCErc20Token(CUSDC, {'from': accounts[0]})
+        PW.addCErc20Token(CDAI, {'from': accounts[0]})
+
+        # Create three proxy wallets for accounts 1 - 3
+        PW1 = ProxyWallet.at(PW.createWalletIfNeeded({'from': accounts[1]}).return_value)
+        PW2 = ProxyWallet.at(PW.createWalletIfNeeded({'from': accounts[1]}).return_value)
+        PW3 = ProxyWallet.at(PW.createWalletIfNeeded({'from': accounts[1]}).return_value)
+
+        # Buy $10,000, $50,000, and $100,000 of USDC into accounts 1 - 3
+        for acct, amount in zip(accounts[1:4], (10000, 50000, 100000)):
+            raw_amount = amount * 10**USDC.decimals()
+            raw_amount_eth = int(amount * 10**18 / 1000)
+            deadline = brownie.chain.time() + 3600
+            UNISWAP.swapETHForExactTokens(raw_amount, [WETH, USDC], acct, deadline, {'from': acct, 'value': raw_amount_eth})
+
+        # Determine next expiry at least 1,024 blocks away & create new future class, long and short
+        EXP = FUT.calcNextExpiryBlockAfter(1024)
+        FCU, FLU, FSU = (
+            FutureToken.at(addr)
+            for addr in FUT.getOrCreateExpiryClassLongShort(
+                            CUSDC,
+                            EXP,
+                            {'from': accounts[0]},
+                        ).return_value
+        )
+        FCD, FLD, FSD = (
+            FutureToken.at(addr)
+            for addr in FUT.getOrCreateExpiryClassLongShort(
+                            CDAI,
+                            EXP,
+                            {'from': accounts[0]},
+                        ).return_value
+        )
+        FCE, FLE, FSE = (
+            FutureToken.at(addr)
+            for addr in FUT.getOrCreateExpiryClassLongShort(
+                            CETH,
+                            EXP,
+                            {'from': accounts[0]},
+                        ).return_value
+        )
+
+        # Create Uniswap long/short, long/ctoken, short/ctoken pools
+        for tok0, tok1 in itertools.chain.from_iterable(
+            itertools.combinations(x, 2) for x in (
+                (FLU, FSU, CUSDC),
+                (FLD, FSD, CDAI),
+                (FLE, FSE, CETH),
+        )):
+            UNISWAP_FACTORY.createPair(tok0, tok1, {'from': accounts[0]})
+
+        FLU_FSU = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLU, FSU))
+        FLU_CUSDC = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLU, CUSDC))
+        FSU_CUSDC = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FSU, CUSDC))
+
+        FLD_FSD = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLD, FSD))
+        FLD_CDAI = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLD, CDAI))
+        FSD_CDAI = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FSD, CDAI))
+
+        FLE_FSE = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLE, FSE))
+        FLE_CETH = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLE, CETH))
+        FSE_CETH = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FSE, CETH))
