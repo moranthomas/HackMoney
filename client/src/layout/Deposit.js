@@ -4,7 +4,26 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faInfoCircle, faNetworkWired, faSync} from '@fortawesome/free-solid-svg-icons';
 export class Deposit extends Component {
 
-    
+
+    // constructor() {
+    //     super();
+    //     this.handleChangeCurrencyDropdown = this.handleChangeCurrencyDropdown.bind(this);
+    //     //this.handleSubmit = this.handleSubmit.bind(this);
+    // }
+
+    state = {
+        amountEth: '',
+        chosenCurrency: ''
+    };
+
+    handleChangeCurrencyDropdown = async(event) => {
+        event.preventDefault();
+        var value = event.target.value;
+        console.log('new value = ' + value)
+        this.setState({ chosenCurrency: value });
+
+    }
+
     render() {
         const Select = styled.select`
         width: 100%;
@@ -33,19 +52,26 @@ export class Deposit extends Component {
                 <FontAwesomeIcon icon={faSync} size="2x" spin />
                 <div className="wrapper">
                     <div className="box a">
-                        <Select>
-                            <option value="" hidden>
-                            Currency
-                            </option>
-                            <option value="1">USDC</option>
-                            <option value="2">DAI</option>
-                            <option value="3">ETH</option>
-                        </Select>
+                        <form onSubmit={this.handleSubmit}>
+                            <Select value={this.state.chosenCurrency} onChange={this.handleChangeCurrencyDropdown}>
+                                <option value="" hidden> Currency </option>
+                                <option value="USDC">USDC</option>
+                                <option value="DAI">DAI</option>
+                                <option value="ETH">ETH</option>
+                            </Select>
+                            {/* <input type="submit" value="Submit" /> */}
+                        </form>
+                        {/* <button onClick={async () => {
+                                console.log(this.eth())
+                            }} >
+                            Get Eth balance
+                        </button> */}
                     </div>
                     <div className="box c">
-                            Value of wallet
+                            Value of Wallet: {this.state.chosenCurrency == 'ETH' && this.props.balanceInEth}
                     </div>
                     <div className="box d">
+
                             <Select>
                                 <option value="" hidden>
                                 Select Maturity Block
@@ -56,6 +82,7 @@ export class Deposit extends Component {
                                 <option value="4">Quarter 4</option>
                             </Select>
                     </div>
+
                     <div className="box e">
                             Estimated Maturity Date/Time
                     </div>
@@ -68,7 +95,7 @@ export class Deposit extends Component {
                 <div className="implied-rate-box">
                      Estimated Fixed Implied Rate: 26%
                 </div>
-                
+
                 <div className="lock-in-fixed-rate">
                      Lock in Fixed Rate
                 </div>
