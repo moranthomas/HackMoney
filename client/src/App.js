@@ -147,20 +147,33 @@ class App extends Component {
           futureTokens[2].toString(),
         )
 
-        const blocksToExpiry = await futureTokenClass.methods.blocksToExpiry().call();
+        
         this.setState({expiryBlock: nextExpiry});//set state for the expiryBlock
         this.setState({blocksToExpiry: blocksToExpiry}); //set State for blocksToExpiry
         console.log('blocks to expiry ' + blocksToExpiry);
 
         //getting price data
-        const prices = await proxyWallet.methods.getPricing(cUsdcAddress,nextExpiry).call();
-        const cxr = prices[0];
-        console.log('prices[0] ' + prices[0]);
+        //APY calculation function
+        function calcImpliedsftAPY(sft_res, ctok_res, min_xr, cxr, col, blks, bpy){
+          const apy = (min_xr/cxr*(1+col/1e18-sft_res/ctok_res)-1)/blks*bpy;
+          return apy;
 
+        }
+        
+        //getting the variables
+        const prices = await proxyWallet.methods.getPricing(cUsdcAddress,nextExpiry).call();
+        
         const sftReserves = prices[4];
         const cUsdcReserves = prices[5];
-        const sftPrice = sftReserves/cUsdcReserves;
-                console.log('current AMM implied price ' + sftPrice)
+        const minxr = await futureTokenClass.methods.createPrice().call();
+        const cxr = prices[0];
+        const collatFactor = await futureTokenShort.methods.collateralFactor().call();
+        const blocksToExpiry = await futureTokenClass.methods.blocksToExpiry().call();
+        const blocksPerYear = 365*24*60*60/13.15;
+
+        const impFixedApy = calcImpliedsftAPY(sftReserves, cUsdcReserves, minxr, cxr, collatFactor, blocksToExpiry, blocksPerYear);
+
+        console.log('current AMM implied APY ' + impFixedApy);
       }
         catch(error){
           console.log('looks like the future tokens were not instantiated')
