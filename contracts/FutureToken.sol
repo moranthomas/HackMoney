@@ -340,7 +340,7 @@ contract FutureToken is
 	     _class_series_short = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Short));
 	     _class_series_long = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Long));
 	     _class_ctoken_decimals = decimals;
-	     _class_settle_price = ctoken.exchangeRateCurrent();
+	     _class_create_price = ctoken.exchangeRateCurrent();
 	 } else {
 	     _class_ctoken_decimals = decimals;
 	     _series_class_owner = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Class));
