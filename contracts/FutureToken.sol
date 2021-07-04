@@ -285,32 +285,33 @@ abstract contract FutureTokenSeries is
 contract FutureToken is
     FutureTokenClass,
     FutureTokenSeries
- {
-     using Address for address;
+{
+    using Address for address;
 
-     constructor() {
-	 _instance_type = InstanceType.Base;
-	 _owner = msg.sender;
-     }
+    constructor() {
+	_instance_type = InstanceType.Base;
+	_owner = msg.sender;
+    }
 
-     function uint32ToHex(uint32 x) pure private returns (bytes8) {
-	 uint256 y = x & 0xffff;
-	 y |= (uint256(x) & 0xffff0000) << (128-16);
-	 y *= (1<<(96+12)) | (1<<(64+8)) | (1<<(32+4)) | 1;
-	 y &= 0x0f000000_000f0000_00000f00_0000000f_0f000000_000f0000_00000f00_0000000f;
-	 y |= y >> 64;
-	 y |= y >> 32;
-	 y &= 0x00000000_00000000_00000000_ffffffff_00000000_00000000_00000000_ffffffff;
-	 y |= y >> 96;
-	 y &= 0xffffffff_ffffffff;
-	 uint256 z = (y>>3) & ((y>>2)|(y>>1));
-	 z &= 0x01010101_01010101;
-	 z |= (z<<5) | (z<<2) | (z<<1);
-	 y += 0x30303030_30303030;
-	 y += z;
-	 return bytes8(uint64(y));
-     }
+    function uint32ToHex(uint32 x) pure private returns (bytes8) {
+	uint256 y = x & 0xffff;
+	y |= (uint256(x) & 0xffff0000) << (128-16);
+	y *= (1<<(96+12)) | (1<<(64+8)) | (1<<(32+4)) | 1;
+	y &= 0x0f000000_000f0000_00000f00_0000000f_0f000000_000f0000_00000f00_0000000f;
+	y |= y >> 64;
+	y |= y >> 32;
+	y &= 0x00000000_00000000_00000000_ffffffff_00000000_00000000_00000000_ffffffff;
+	y |= y >> 96;
+	y &= 0xffffffff_ffffffff;
+	uint256 z = (y>>3) & ((y>>2)|(y>>1));
+	z &= 0x01010101_01010101;
+	z |= (z<<5) | (z<<2) | (z<<1);
+	y += 0x30303030_30303030;
+	y += z;
+	return bytes8(uint64(y));
+    }
  
+<<<<<<< HEAD
      function initializeChild(CTokenInterface ctoken, uint8 decimals, uint32 expiry_block, InstanceType instance_type) external {
 	 require(instance_type == InstanceType.Long
 		 || instance_type == InstanceType.Short
@@ -373,40 +374,109 @@ contract FutureToken is
 	 require(ctoken_decimals <= 18); // dev: ctokens with more than 18 decimals not supported
 
 	 /*	 
+=======
+    function initializeChild(CTokenInterface ctoken, uint8 decimals, uint32 expiry_block, InstanceType instance_type) external {
+	require(instance_type == InstanceType.Long
+		|| instance_type == InstanceType.Short
+		|| instance_type == InstanceType.Class); // dev: must be long, short or class
+	require(address(this) == _getAddress(msg.sender, ctoken, expiry_block, instance_type)); // dev: must be called by base
+	require(address(ctoken) != address(0)); // dev: ctoken must be non-zero
+	require(uint(expiry_block) >= block.number); // dev: expiry must not be in past
+	require(expiry_block == calcExpiryBlock(expiry_block)); // dev: expiry must be a valid expiry
+	require(_instance_type == InstanceType.None); // dev: instance type must be uninitialized
+	require(_owner == address(0)); // dev: owner must be uninitialized
+	require(_class_create_block == 0); // dev: class create block must be uninitialized
+	require(_class_expiry_block == 0); // dev: class expiry block must be uninitialized
+	require(_class_settle_block == 0); // dev: class expiry block must be uninitialized
+	require(_class_ctoken_decimals == 0); // dev: series decimal must be uninitialized
+	require(_class_create_price == 0); // dev: class create price must be uninitialized
+	require(_class_settle_price == 0); // dev: class settle price block must be uninitialized
+	require(address(_class_series_short) == address(0)); // dev: class series short must be uninitialized
+	require(address(_class_series_long) == address(0)); // dev: class series long must be uninitialized
+	require(address(_series_class_owner) == address(0)); // dev: series class owner must be uninitialized
+	require(_series_totalSupply == 0); // dev: series total supply must be uninitialized
+
+	_instance_type = instance_type;
+	_class_ctoken = ctoken;
+	_class_create_block = uint32(block.number);
+	_class_expiry_block = expiry_block;
+	if (instance_type == InstanceType.Class) {
+	    _class_series_short = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Short));
+	    _class_series_long = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Long));
+	    _class_ctoken_decimals = decimals;
+	    _class_create_price = ctoken.exchangeRateCurrent();
+	} else {
+	    _class_ctoken_decimals = decimals;
+	    _series_class_owner = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Class));
+
+	    // As SERIES_EXPIRY_BITS is 12 ("chunk" size of 4,096), the last three hexadecimal digits of the
+	    // expiry block will always be zero, hence omit last three bytes of the hex encoded expiry block.
+	    bytes5 expiry_hex_prefix = bytes5(uint40(uint64(uint32ToHex(expiry_block >> (SERIES_EXPIRY_BITS/4*4)))));
+	    _series_symbol = string(abi.encodePacked("CVX/",
+						     ctoken.symbol(),
+						     "/0x",
+						     expiry_hex_prefix,
+						     instance_type == InstanceType.Short ? "/S" :
+						     instance_type == InstanceType.Long ? "/L" : ""));
+	}
+    }
+
+    function getExpiryClassLongShort(CTokenInterface ctoken, uint256 expiry) external view onlyIfBase returns (address, address, address) {
+	address addr_class = _getAddress(address(this), ctoken, expiry, InstanceType.Class);
+	address addr_long = _getAddress(address(this), ctoken, expiry, InstanceType.Long);
+	address addr_short = _getAddress(address(this), ctoken, expiry, InstanceType.Short);
+
+	if (!addr_class.isContract()) addr_class = address(0);
+	if (!addr_long.isContract()) addr_long = address(0);
+	if (!addr_short.isContract()) addr_short = address(0);
+
+	return (addr_class, addr_long, addr_short);
+    }
+
+    function getOrCreateExpiryClassLongShort(CTokenInterface ctoken, uint32 expiry_block) external onlyIfBase returns (address, address, address) {
+	require(address(ctoken) != address(0)); // dev: ctoken must be non-zero
+	require(uint(expiry_block) >= block.number); // dev: expiry must not be in past
+
+	uint8 ctoken_decimals = ctoken.decimals();
+	require(ctoken_decimals <= 18); // dev: ctokens with more than 18 decimals not supported
+
+    /*	 
+>>>>>>> kp/one
     function supply(uint256 amount) external returns (bool) {
 	require(amount > 0); // dev: amount must be non-zero
 	require(_class_ctoken.transferFrom(msg.sender, address(this), amount)); // dev: inbound transfer of ctokens failed
 	uint256 mint_amount = amount * 1000_000_000_000 * SERIES_MARGIN_RATIO_DIVISOR / SERIES_MARGIN_RATIO_MULTIPLIER;
 	require(FutureToken(_class_series_short).mint(msg.sender, mint_amount)); // dev: minting short tokens failed
 	require(FutureToken(_class_series_long).mint(msg.sender, mint_amount)); // dev: minting long tokens failed
-	}*/
+    }
+    */
 
-	 address addr_class = _getAddress(address(this), ctoken, expiry_block, InstanceType.Class);
-	 if (!addr_class.isContract()) {
-	     require(addr_class == Clones.cloneDeterministic(address(this), _getAddressSalt(ctoken, expiry_block, InstanceType.Class))); // dev: clone created at unexpected address
-	     FutureToken(addr_class).initializeChild(ctoken, ctoken_decimals, expiry_block, InstanceType.Class);
-	 }
+	address addr_class = _getAddress(address(this), ctoken, expiry_block, InstanceType.Class);
+	if (!addr_class.isContract()) {
+	    require(addr_class == Clones.cloneDeterministic(address(this), _getAddressSalt(ctoken, expiry_block, InstanceType.Class))); // dev: clone created at unexpected address
+	    FutureToken(addr_class).initializeChild(ctoken, ctoken_decimals, expiry_block, InstanceType.Class);
+	}
 
-	 address addr_long = _getAddress(address(this), ctoken, expiry_block, InstanceType.Long);
-	 if (!addr_long.isContract()) {
-	     require(addr_long == Clones.cloneDeterministic(address(this), _getAddressSalt(ctoken, expiry_block, InstanceType.Long))); // dev: clone created at unexpected address
-	     FutureToken(addr_long).initializeChild(ctoken, ctoken_decimals, expiry_block, InstanceType.Long);
-	 }
+	address addr_long = _getAddress(address(this), ctoken, expiry_block, InstanceType.Long);
+	if (!addr_long.isContract()) {
+	    require(addr_long == Clones.cloneDeterministic(address(this), _getAddressSalt(ctoken, expiry_block, InstanceType.Long))); // dev: clone created at unexpected address
+	    FutureToken(addr_long).initializeChild(ctoken, ctoken_decimals, expiry_block, InstanceType.Long);
+	}
 
-	 address addr_short = _getAddress(address(this), ctoken, expiry_block, InstanceType.Short);
-	 if (!addr_short.isContract()) {
-	     require(addr_short == Clones.cloneDeterministic(address(this), _getAddressSalt(ctoken, expiry_block, InstanceType.Short))); // dev: clone created at unexpected address
-	     FutureToken(addr_short).initializeChild(ctoken, ctoken_decimals, expiry_block, InstanceType.Short);
-	 }
+	address addr_short = _getAddress(address(this), ctoken, expiry_block, InstanceType.Short);
+	if (!addr_short.isContract()) {
+	    require(addr_short == Clones.cloneDeterministic(address(this), _getAddressSalt(ctoken, expiry_block, InstanceType.Short))); // dev: clone created at unexpected address
+	    FutureToken(addr_short).initializeChild(ctoken, ctoken_decimals, expiry_block, InstanceType.Short);
+	}
 
-	 return (addr_class, addr_long, addr_short);
-     }
+	return (addr_class, addr_long, addr_short);
+    }
 
-     function _getAddressSalt(CTokenInterface ctoken, uint256 expiry_block, InstanceType instance_type) pure internal returns (bytes32) {
-	 return keccak256(abi.encodePacked(ctoken, expiry_block, uint8(instance_type)));
-     }
+    function _getAddressSalt(CTokenInterface ctoken, uint256 expiry_block, InstanceType instance_type) pure internal returns (bytes32) {
+	return keccak256(abi.encodePacked(ctoken, expiry_block, uint8(instance_type)));
+    }
 
-     function _getAddress(address main, CTokenInterface ctoken, uint256 expiry_block, InstanceType instance_type) pure internal returns (address) {
-	 return Clones.predictDeterministicAddress(main, _getAddressSalt(ctoken, expiry_block, instance_type), main);
-     }
+    function _getAddress(address main, CTokenInterface ctoken, uint256 expiry_block, InstanceType instance_type) pure internal returns (address) {
+	return Clones.predictDeterministicAddress(main, _getAddressSalt(ctoken, expiry_block, instance_type), main);
+    }
 }
