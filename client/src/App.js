@@ -137,14 +137,14 @@ class App extends Component {
       console.log('block height ' + blockNumber);
       //find out what the next Expiry block is that is at 196608 blocks from now
       var nextExpiry = await futureTokenMaster.methods.calcNextExpiryBlockAfter(196608).call(); 
-      
+      console.log('next expiry should be '+ nextExpiry);
       var futureTokens = []
 
       try{
         futureTokens = await futureTokenMaster.methods.getExpiryClassLongShort(cUsdcAddress,nextExpiry).call(); //with that and the cUSDC token address, we can get the three tokens
         
         //sometimes the future tokens are created right at a multiple of 4096, then the expiry might be missed
-        if(futureTokens[0] = '0x0000000000000000000000000000000000000000'){
+        if(futureTokens[0] === '0x0000000000000000000000000000000000000000'){
           console.log('trying again to find expiry')
           nextExpiry = nextExpiry-4096;
           futureTokens = await futureTokenMaster.methods.getExpiryClassLongShort(cUsdcAddress,nextExpiry).call();
