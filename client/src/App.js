@@ -29,15 +29,14 @@ class App extends Component {
     networkId: '',
     chainId: '',
     contract: null,
-    cUSDCxr: ''
+    cUSDCxr: '',
+    balanceInEth: ''
   };
 
   isMetaMaskInstalled = () => MetaMaskOnboarding.isMetaMaskInstalled()
 
   componentDidMount = async () => {
     try {
-
-     // console.log('isMetaMaskInstalled() = '+ this.isMetaMaskInstalled());
 
       const web3 = await getWeb3();                     // Get network provider and web3 instance.
       this.setState({ web3: web3 });
@@ -50,20 +49,33 @@ class App extends Component {
       console.log("chainId: ", chainId);
       console.log("User Accounts:" , userAccounts);
 
+      // getEthBalance
+      var balance = await web3.eth.getBalance(userAccounts[0]);
+      const balanceInEth = web3.utils.fromWei(balance, 'ether');
+      console.log(balanceInEth + ' ETH in wallet');
+      this.setState( { balanceInEth: balanceInEth });
+
+      // getUSDCTokenBalance
+      const USDContractInstance = await new web3.eth.Contract(config.usdcAbi, config.usdcAddress);
+      let usdcBalance = await USDContractInstance.methods.balanceOf(userAccounts[0]).call();
+      //sdcBalance = web3.utils.hexToNumber(usdcBalance) / Math.pow(10, 6);
+      console.log(' usdcBalance == $ ' + usdcBalance );
+
       let displayAccount = userAccounts[0].substring(0,8);
+
       this.setState({ accounts: userAccounts });
       this.setState({ displayAccount: displayAccount });
       this.setState({ networkId: networkId });
       this.setState({ chainId: chainId });
 
       //when brownie deploys contracts with helper, it drops in more addresses
-      const ProxyWalletAddress = map.dev.ProxyWallet[map.dev.ProxyWallet.length-1].toString(); 
+      const ProxyWalletAddress = map.dev.ProxyWallet[map.dev.ProxyWallet.length-1].toString();
       const ProxyWalletAbi = ProxyWallet.abi;
       const ProxyWalletInstance = new web3.eth.Contract(
         ProxyWalletAbi,
         ProxyWalletAddress,
       );
-     
+
       const FutureTokenAddress = map.dev.FutureToken[map.dev.FutureToken.length-1].toString();
       const FutureTokenAbi = FutureToken.abi;
       const FutureTokenInstance = new web3.eth.Contract(
@@ -76,19 +88,16 @@ class App extends Component {
       const cUsdcAddress = config.cUsdcAddress;
       const cUsdcAbi = config.cUsdcAbi;
       const cUsdcContract = new web3.eth.Contract(
-        cUsdcAbi, 
+        cUsdcAbi,
         cUsdcAddress,
       );
 
-
-      console.log('proxyWalletInstance: ' + ProxyWalletInstance);
-      
       //Goal is to create a wallet contract instance
       //this transaction gets or creates a wallet if needed.
       //we should check if the userAccount already has a wallet deployed
       //declare a walletAddress variable
       var walletAddress = '';
-      
+
       try {
         //try calling the getClone method. If there is no clone, then we will get an error
         walletAddress = await ProxyWalletInstance.methods.getWallet().call({'from': userAccounts[0]});
@@ -105,21 +114,21 @@ class App extends Component {
         ProxyWalletAbi,
         walletAddress,
       );
-      
+
       //The goal here is to find out the futureClass Token expiry block
       //We will assume that the script has run and there is an exisiting expiry
       //we need to first find out the address of the futureClass.
-      
+
       //get the blockNumber to calculate the nextExpiry
-      const blockNumber = await web3.eth.getBlockNumber(); 
+      const blockNumber = await web3.eth.getBlockNumber();
       //find out what the next Expiry block is that is at least 1024 blocks from now
-      const nextExpiry = await FutureTokenInstance.methods.calcExpiryBlock(blockNumber + 1024).call(); 
-      
+      const nextExpiry = await FutureTokenInstance.methods.calcExpiryBlock(blockNumber + 1024).call();
+
       var futureTokens = []
 
       try{
         futureTokens = await FutureTokenInstance.methods.getExpiryClassLongShort(cUsdcAddress,nextExpiry).call(); //with that and the cUSDC token address, we can get the three tokens
-        
+
         //we have the token address, so now lets create future token class contract instances
         //const futureTokenClassAbi = futureTokenClassJson.abi;
         const futureTokenClass = new web3.eth.Contract(
@@ -156,7 +165,7 @@ class App extends Component {
       const cUsdtAddress = Compound.util.getAddress(Compound.cUSDT);
       console.log('Compound cUsdtAddress: ' + cUsdtAddress);
 
-      
+
 
       // consts and formulae
       const owner = "0xbcd4042de499d14e55001ccbb24a551f3b954096"; //owner of the Contract is also the market maker
@@ -214,18 +223,12 @@ class App extends Component {
                 web3={this.state.web3}
                 cUSDCxr={this.state.cUSDCxr}
                 networkId={this.state.networkId}
-                chainId={this.state.chainId} 
+                chainId={this.state.chainId}
                 //pass blocksToExpiry and expiryBlock as props so that we can display it in the deposit page
                 blocksToExpiry={this.state.blocksToExpiry}
                 expiryBlock={this.state.expiryBlock}
+                balanceInEth={this.state.balanceInEth}
                 />
-                
-
-                {/* <button onClick={async () => {
-                  console.log(this.CompoundSupplyRatePerBlock())
-                   }} >
-                    Get Compound USDT rate
-                </button> */}
 
                 <OnboardingButton></OnboardingButton>
 
