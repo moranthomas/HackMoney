@@ -61,6 +61,9 @@ body {
   padding: 20px;
   border-radius: 5px;
   background-color: #ff88e5;
+  width: 100%;
+  color: #fff;
+  font-size: 1rem;
 }
 
 h1 {
