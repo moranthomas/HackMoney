@@ -184,8 +184,8 @@ def main():
 
         # Create three proxy wallets for accounts 1 - 3
         PW1 = ProxyWallet.at(PW.createWalletIfNeeded({'from': accounts[1]}).return_value)
-        PW2 = ProxyWallet.at(PW.createWalletIfNeeded({'from': accounts[1]}).return_value)
-        PW3 = ProxyWallet.at(PW.createWalletIfNeeded({'from': accounts[1]}).return_value)
+        PW2 = ProxyWallet.at(PW.createWalletIfNeeded({'from': accounts[2]}).return_value)
+        PW3 = ProxyWallet.at(PW.createWalletIfNeeded({'from': accounts[3]}).return_value)
 
         # Buy $10,000, $50,000, and $100,000 of USDC into accounts 1 - 3
         for acct, amount in zip(accounts[1:4], (10000, 50000, 100000)):
