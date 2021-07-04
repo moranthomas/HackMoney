@@ -49,7 +49,11 @@ export default function Navbar(props) {
                 <p style = {accountsStyle} >USDC Exchange Rate: {props.cUSDCxr} </p>
                 <p style = {accountsStyle} >ETH Balance: {props.balanceInEth} </p>
                 <p style = {accountsStyle} >USDC Balance: {props.balanceInUSDC} </p>
-                <p style = {accountsStyle} >User Wallet: {props.proxyWalletDisplay} </p>
+                <p style = {accountsStyle} >Proxy Wallet: {props.proxyWalletDisplay} </p>
+                <p style = {accountsStyle} >Proxy Wallet cUSDC: {props.pWalletCusdcBal} </p>
+                <p style = {accountsStyle} >Proxy Wallet SFT: {props.pWalletSftBal} </p>
+                <p style = {accountsStyle} >Proxy Wallet USDC value: {props.pWalletValueUsdc} </p>
+                <p style = {accountsStyle} >Proxy Wallet USDC Maturity: {props.pWalletValueMat} </p>
             </div>
 
         </header>

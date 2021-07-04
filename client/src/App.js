@@ -29,10 +29,17 @@ class App extends Component {
     balanceInEth: '',
     balanceInUSDC: ''
   };
+  
 
   isMetaMaskInstalled = () => MetaMaskOnboarding.isMetaMaskInstalled()
 
   componentDidMount = async () => {
+    const decimals = {usdc : 6, cusdc: 8, cusdcRate : 16};
+    const scaler = {
+      usdc : Math.pow(10, decimals.usdc),
+      cusdc : Math.pow(10, decimals.cusdc),
+      cusdcRate : Math.pow(10,decimals.cusdcRate)
+    }
     try {
 
       const web3 = await getWeb3();                     // Get network provider and web3 instance.
@@ -128,8 +135,8 @@ class App extends Component {
       //get the blockNumber to calculate the nextExpiry
       const blockNumber = await web3.eth.getBlockNumber();
       console.log('block height ' + blockNumber);
-      //find out what the next Expiry block is that is at least 1024 blocks from now
-      var nextExpiry = await futureTokenMaster.methods.calcNextExpiryBlockAfter(48*4096).call(); 
+      //find out what the next Expiry block is that is at 196608 blocks from now
+      var nextExpiry = await futureTokenMaster.methods.calcNextExpiryBlockAfter(196608).call(); 
       
       var futureTokens = []
 
@@ -164,7 +171,16 @@ class App extends Component {
         function calcImpliedsftAPY(sft_res, ctok_res, min_xr, cxr, col, blks, bpy){
           const apy = (min_xr*(1+col/1e18-ctok_res/sft_res)/cxr-1)*bpy/blks;
           return apy;
+        }
 
+        //returns the amm price
+        function ammPrice(ft_res, ctok_res){
+          return ctok_res/ft_res;
+        }
+
+        //returns implied sft exchangeRate
+        function ammImpSftXR(sft_res, ctok_res, min_xr, col) {
+          return min_xr*(1+col/1e18-ctok_res/sft_res);
         }
         
         //getting the variables
@@ -172,10 +188,13 @@ class App extends Component {
         
         const sftReserves = prices[4];
         const cUsdcReserves = prices[5];
+        const sftPrice = ammPrice(sftReserves, cUsdcReserves);
+        
         const minxr = await futureTokenClass.methods.createPrice().call();
         const cxr = prices[0];
         const collatFactor = await futureTokenShort.methods.collateralFactor().call();
         const blocksToExpiry = await futureTokenClass.methods.blocksToExpiry().call();
+        const sftImpXr = ammImpSftXR(sftReserves, cUsdcReserves, minxr, collatFactor);
         const blocksPerYear = 365*24*60*60/13.15;
         this.setState({expiryBlock: nextExpiry});//set state for the expiryBlock
         this.setState({blocksToExpiry: blocksToExpiry}); //set State for blocksToExpiry
@@ -183,7 +202,8 @@ class App extends Component {
         console.log(
           'sft reserves : ' + sftReserves + '\n' +
           'cusdc reserves : ' + cUsdcReserves +'\n' +
-          'sft price : ' + cUsdcReserves/sftReserves +'\n' +
+          'sft price : ' + sftPrice +'\n' +
+          'sft Implied XR : ' + sftImpXr +'\n' +
           'minxr : ' + minxr +'\n' +
           'cxr : ' + cxr +'\n' +
           'collatFactor : ' + collatFactor +'\n' +
@@ -194,6 +214,26 @@ class App extends Component {
 
         console.log('current AMM implied APY ' + impFixedApy);
         this.setState({impFixedApy : impFixedApy});
+
+        //here we find out the proxyWallet's cToken balances - raw
+        const pWalletCusdcBal = await cUsdcContract.methods.balanceOf(proxyWalletAddress).call()/scaler.cusdc;
+        this.setState({pWalletCusdcBal: pWalletCusdcBal});
+
+        //here we find out the proxyWallet's SFT balances - raw
+        const pWalletSftBal = await futureTokenShort.methods.balanceOf(proxyWalletAddress).call()/scaler.cusdc;
+        this.setState({pWalletSftBal: pWalletSftBal});
+
+        //SFT value is SFT balances * Sftprice -raw
+        const sftValue = pWalletSftBal * sftPrice;
+        //and the value of the whole wallet is SFT + cTokens -raw
+        const pWalletValueCusdc = sftValue + pWalletCusdcBal;
+        //and the underlying value is - raw
+        const pWalletValueUsdc = pWalletValueCusdc*prices[0]/scaler.cusdcRate;      
+        this.setState({pWalletValueUsdc: pWalletValueUsdc});
+        //the expected USDC value at maturity is current cUSDC value times SFT AMM price
+        const pWalletValueMat = pWalletValueCusdc*sftImpXr/scaler.cusdcRate;
+        this.setState({pWalletValueMat: pWalletValueMat});
+
       }
         catch(error){
           console.log('looks like the future tokens were not instantiated. Check the Expiry Block')
@@ -221,12 +261,7 @@ class App extends Component {
       const expiryDateObject = new Date('June 5 2022');
       const today = new Date();
       const msPerYear = 24 * 60 * 60 * 1000 *365; // Number of milliseconds per year
-      const decimals = {usdc : 6, cusdc: 8, cusdcRate : 16};
-      const scaler = {
-        usdc : Math.pow(10, decimals.usdc),
-        cusdc : Math.pow(10, decimals.cusdc),
-        cusdcRate : Math.pow(10,decimals.cusdcRate)
-      }
+
 
       //returns the current exchange rate from cUSDC contract
       async function cUSDCExchangeRate () {
@@ -236,6 +271,9 @@ class App extends Component {
 
       const cUSDCxr = await cUSDCExchangeRate();
       this.setState({ cUSDCxr: parseFloat(cUSDCxr).toFixed(4)});
+
+
+
 
       //Set web3, accounts, and contract to the state - for more flexiblility.
       //this.setState({ web3, accounts, contract: instance }, this.runExample);
@@ -280,6 +318,10 @@ class App extends Component {
                 balanceInUSDC={this.state.balanceInUSDC}
                 //add userWallet as a prop
                 proxyWalletDisplay={this.state.proxyWalletDisplay}
+                pWalletCusdcBal={this.state.pWalletCusdcBal}
+                pWalletSftBal={this.state.pWalletSftBal}
+                pWalletValueUsdc={this.state.pWalletValueUsdc}
+                pWalletValueMat={this.state.pWalletValueMat}
                 impFixedApy={this.state.impFixedApy}
                 />
 
