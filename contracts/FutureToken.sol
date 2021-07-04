@@ -3,9 +3,9 @@ pragma solidity ^0.8.6;
 
 import "OpenZeppelin/openzeppelin-contracts@4.1.0/contracts/token/ERC20/IERC20.sol";
 import "OpenZeppelin/openzeppelin-contracts@4.1.0/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {CTokenInterface} from "interfaces/CTokenInterfaces.sol";
 import {Clones} from "OpenZeppelin/openzeppelin-contracts@4.1.0/contracts/proxy/Clones.sol";
 import {Address} from "OpenZeppelin/openzeppelin-contracts@4.1.0/contracts/utils/Address.sol";
+import {CTokenInterface} from "contracts/CTokenInterfaces.sol";
 
 enum InstanceType {
     None,  // 0x0 0b000
@@ -26,6 +26,7 @@ abstract contract FutureTokenClassData {
     uint32 internal _class_expiry_block;
     uint32 internal _class_settle_block;
     uint8 internal _class_ctoken_decimals;
+    uint256 internal _class_create_price;
     uint256 internal _class_settle_price;
     //    uint256 internal _class_margin_ratio;
     FutureToken internal _class_series_short;
@@ -116,6 +117,8 @@ abstract contract FutureTokenClass is
     function expiryBlock() external view /*onlyIfClass*/ returns (uint256) { return _class_expiry_block; }
     function settleBlock() external view /*onlyIfClass*/ returns (uint256) { return _class_settle_block; }
     function isExpired() external view returns (bool) {	return _class_settle_block == 0; }
+    function createPrice() external view /*onlyIfClass*/ returns (uint256) { return _class_create_price; }
+    function settlePrice() external view /*onlyIfClass*/ returns (uint256) { return _class_settle_price; }
 
     function blocksToExpiry() external view /*onlyIfClass*/ returns (uint256) {
 	if (block.number < _class_expiry_block)
@@ -322,7 +325,8 @@ contract FutureToken is
 	 require(_class_expiry_block == 0); // dev: class expiry block must be uninitialized
 	 require(_class_settle_block == 0); // dev: class expiry block must be uninitialized
 	 require(_class_ctoken_decimals == 0); // dev: series decimal must be uninitialized
-	 require(_class_settle_price == 0); // dev: class expiry block must be uninitialized
+	 require(_class_create_price == 0); // dev: class create price must be uninitialized
+	 require(_class_settle_price == 0); // dev: class settle price block must be uninitialized
 	 require(address(_class_series_short) == address(0)); // dev: class series short must be uninitialized
 	 require(address(_class_series_long) == address(0)); // dev: class series long must be uninitialized
 	 require(address(_series_class_owner) == address(0)); // dev: series class owner must be uninitialized
@@ -336,6 +340,7 @@ contract FutureToken is
 	     _class_series_short = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Short));
 	     _class_series_long = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Long));
 	     _class_ctoken_decimals = decimals;
+	     _class_settle_price = ctoken.exchangeRateCurrent();
 	 } else {
 	     _class_ctoken_decimals = decimals;
 	     _series_class_owner = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Class));

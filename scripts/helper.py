@@ -151,10 +151,12 @@ def main():
     CONTRACTS = load_mainnet_contracts()
     WETH = CONTRACTS['token-weth']
     USDC = CONTRACTS['token-usdc']
+    CETH = CONTRACTS['compound-ceth']
     CUSDC = CONTRACTS['compound-cusdc']
+    COMPTROLLER = CONTRACTS['compound-comptroller']
     UNISWAP = CONTRACTS['uniswap-v2-router']
     UNISWAP_FACTORY = CONTRACTS['uniswap-v2-factory']
     network = brownie.network.main.show_active()
     if brownie.network.chain.id >= 1000 and (network == 'development' or network.find('fork') >= 0):
         FUT = FutureToken.deploy({'from': accounts[0]})
-        PW = ProxyWallet.deploy({'from': accounts[0]})
+        PW = ProxyWallet.deploy(FUT, COMPTROLLER, UNISWAP, {'from': accounts[0]})

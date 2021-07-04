@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.6;
 
+//import "interfaces/CTokenInterfaces.sol";
+
 interface ComptrollerInterface {
     /// @notice Indicator that this is a Comptroller contract (for inspection)
 //    bool public constant isComptroller = true;
@@ -69,4 +71,12 @@ interface ComptrollerInterface {
         address cTokenBorrowed,
         address cTokenCollateral,
         uint repayAmount) external view returns (uint, uint);
+
+    function getAllMarkets() external view returns (address[] memory);
+
+    /**
+     * @notice Return the address of the COMP token
+     * @return The address of COMP
+     */
+    function getCompAddress() external view returns (address);
 }

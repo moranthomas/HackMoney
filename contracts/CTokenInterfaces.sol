@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 pragma solidity ^0.8.6;
 
-import "./ComptrollerInterface.sol";
-import "./InterestRateModel.sol";
+import "interfaces/ComptrollerInterface.sol";
+import "interfaces/InterestRateModel.sol";
 
 abstract contract CTokenStorage {
     /**
@@ -258,7 +258,7 @@ abstract contract CErc20Interface is CErc20Storage {
     function borrow(uint borrowAmount) external virtual returns (uint);
     function repayBorrow(uint repayAmount) external virtual returns (uint);
     function repayBorrowBehalf(address borrower, uint repayAmount) external virtual returns (uint);
-    function liquidateBorrow(address borrower, uint repayAmount, CTokenInterface cTokenCollateral) external virtual returns (uint);
+    function liquidateBorrow(address borrower, uint repayAmount, /*CTokenInterface*/ address cTokenCollateral) external virtual returns (uint);
 
 
     /*** Admin Functions ***/
