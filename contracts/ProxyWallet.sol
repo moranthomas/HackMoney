@@ -44,6 +44,15 @@ abstract contract ProxyWalletImpl is ProxyWalletData {
 	uint _rate_before,
 	uint _rate_after
     );
+    event WalletWithdraw(
+	address indexed _to,
+	address indexed _withdraw_token,
+	address indexed _ctoken,
+	uint _withdrawvalue,
+	uint _ctoken_value,
+	uint _rate_before,
+	uint _rate_after
+    );
 
     modifier onlyOwner() {
         require(_owner == msg.sender); // dev: Ownable: caller is not the owner
@@ -94,6 +103,7 @@ contract ProxyWallet is ProxyWalletImpl {
 	_compound_comptroller = compound_comptroller;
 	_uniswap_router = uniswap_router;
 
+	// Code below moved to separate post construction functions due to gas limits
 	/*
 	address[] memory ctokens = compound_comptroller.getAllMarkets();
 	uint num_ctokens = ctokens.length;
@@ -182,11 +192,143 @@ contract ProxyWallet is ProxyWalletImpl {
 	    return IERC20(token).balanceOf(address(this));
     }
 
-    function deposit(uint amount, address token) external payable onlyOwner returns (bool) {
-	(FutureToken _ignore0,
-	 IUniswapV2Router02 _ignore1,
-	 IUniswapV2Factory _ignore2,
+    struct BalanceData {
+	uint balance_token;
+	uint balance_ctoken;
+	uint balance_future_long;
+	uint balance_future_short;
+	uint expiry;
+	address token;
+	address ctoken;
+	address fut_class;
+	address fut_long;
+	address fut_short;
+    }
+
+    function getBalancesForTokenExpiry(address token, uint blocks) view external returns (BalanceData memory x) {
+	(FutureToken fut,
+	 /*IUniswapV2Router02*/,
+	 /*IUniswapV2Factory*/,
+	 CTokenInterface ctoken) = _getProxyCommonData(token);
+	x.expiry = fut.calcExpiryBlock(blocks);
+	if (ctoken == _cether) {
+	    x.token = ETH_TOKEN_ADDRESS;
+	    x.balance_token = address(this).balance;
+	} else {
+	    x.token = ICErc20(address(ctoken)).underlying();
+	    x.balance_token = IERC20(token).balanceOf(address(this));
+	}
+	(x.fut_class, x.fut_long, x.fut_short) = fut.getExpiryClassLongShort(ctoken, x.expiry);
+	x.balance_future_long = FutureToken(x.fut_long).balanceOf(address(this));
+	x.balance_future_short = FutureToken(x.fut_short).balanceOf(address(this));
+    }
+
+    function approveTokenForOwner(uint amount, IERC20 token) external onlyOwner returns (bool) {
+	require(address(token) != address(0)); // dev: token must be non-zero
+	require(token.approve(msg.sender, amount)); // dev: approve failed
+	return true;
+    }
+
+    function transferEtherToOwner(uint amount) external onlyOwner returns (bool) {
+	require(amount > 0); // dev: amount is zero
+	(bool sent, bytes memory data) = msg.sender.call{value: amount}("");
+	require(sent); // dev: failed to refund excess deposit amount
+	return true;
+    }
+
+    function transferTokenToOwner(uint amount, IERC20 token) external onlyOwner returns (bool) {
+	require(address(token) != address(0)); // dev: token must be non-zero
+	require(token.transfer(msg.sender, amount)); // dev: token transfer failed
+	return true;
+    }
+
+    function withdraw(uint amount, address token) external onlyOwner returns (bool) {
+	(/*FutureToken*/,
+	 /*IUniswapV2Router02*/,
+	 /*IUniswapV2Factory*/,
 	 CTokenInterface ctoken_intf) = _getProxyCommonData(token);
+
+	if (token == ETH_TOKEN_ADDRESS || ctoken_intf == _cether)
+	    return _withdraw_ether(amount, token, ICEther(payable(address(ctoken_intf))));
+
+	return _withdraw_erc20(amount, IERC20(token), ICErc20(address(ctoken_intf)));
+    }
+
+    function _withdraw_ether(uint amount, address token, ICEther cether) internal returns (bool) {
+	require(amount > 0); // dev: amount is zero
+
+	uint balance_eth_before = address(this).balance;
+	uint balance_ceth_before = cether.balanceOf(address(this));
+	uint rate_before = cether.exchangeRateCurrent();
+	{
+	    uint rc = token == address(cether)
+		? cether.redeem(amount)
+		: cether.redeemUnderlying(amount);
+	    if (rc != 0) {
+		bytes memory text = "deposit:3:\x00";
+		text[10] = bytes1(64 + (uint8(rc) & 0x1f));
+		revert(string(text));
+	    }
+	}
+	uint balance_eth_redeemed = address(this).balance - balance_eth_before;
+	uint balance_ceth_redeemed = balance_ceth_before - cether.balanceOf(address(this));
+	uint rate_after = cether.exchangeRateCurrent();
+	require(balance_eth_redeemed > 0); // dev: nothing minted (eth)
+	require(balance_ceth_redeemed > 0); // dev: nothing minted (ceth)
+
+	(bool sent, bytes memory data) = msg.sender.call{value: balance_eth_redeemed}("");
+	require(sent); // dev: failed to return withdrawn eth
+
+	emit WalletWithdraw(msg.sender,
+			    ETH_TOKEN_ADDRESS,
+			    address(cether),
+			    balance_eth_redeemed,
+			    balance_ceth_redeemed,
+			    rate_before,
+			    rate_after);
+	return true;
+    }
+
+    function _withdraw_erc20(uint amount, IERC20 token, ICErc20 ctoken) internal returns (bool) {
+	require(amount > 0); // dev: amount is zero
+
+	uint balance_token_before = token.balanceOf(address(this));
+	uint balance_ctoken_before = ctoken.balanceOf(address(this));
+	uint rate_before = ctoken.exchangeRateCurrent();
+	{
+	    uint rc = address(token) == address(ctoken)
+		? ctoken.redeem(amount)
+		: ctoken.redeemUnderlying(amount);
+	    if (rc != 0) {
+		bytes memory text = "deposit:3:\x00";
+		text[10] = bytes1(64 + (uint8(rc) & 0x1f));
+		revert(string(text));
+	    }
+	}
+	uint balance_token_redeemed = token.balanceOf(address(this)) - balance_token_before;
+	uint balance_ctoken_redeemed = balance_ctoken_before - ctoken.balanceOf(address(this));
+	uint rate_after = ctoken.exchangeRateCurrent();
+	require(balance_token_redeemed > 0); // dev: nothing minted (token)
+	require(balance_ctoken_redeemed > 0); // dev: nothing minted (ctoken)
+
+	require(token.transfer(msg.sender, balance_token_redeemed)); // dev: token transfer failed
+
+	emit WalletWithdraw(msg.sender,
+			    address(token),
+			    address(ctoken),
+			    balance_token_redeemed,
+			    balance_ctoken_redeemed,
+			    rate_before,
+			    rate_after);
+	return true;
+    }
+
+    function deposit(uint amount, address token) external payable onlyOwner returns (bool) {
+	(/*FutureToken*/,
+	 /*IUniswapV2Router02*/,
+	 /*IUniswapV2Factory*/,
+	 CTokenInterface ctoken_intf) = _getProxyCommonData(token);
+
 	if (token == ETH_TOKEN_ADDRESS) {
 	    assert(amount >= msg.value); // dev: supplied ether less than amount required
 	    if (amount < msg.value) {
@@ -197,6 +339,13 @@ contract ProxyWallet is ProxyWalletImpl {
 	    ICEther cether = ICEther(payable(address(ctoken_intf)));
 	    return _deposit_ether(amount, cether);
 	}
+
+	// for token deposits, refund any/all ETH sent
+	if (msg.value > 0) {
+	    (bool sent, bytes memory data) = msg.sender.call{value: msg.value}("");
+	    require(sent); // dev: failed to refund excess deposit amount
+	}
+
 	address ctoken = address(ctoken_intf);
 	if (token != ctoken)
 	    return _deposit_erc20(amount, IERC20(token), ICErc20(ctoken));
