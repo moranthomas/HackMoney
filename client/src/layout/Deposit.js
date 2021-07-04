@@ -59,7 +59,7 @@ export class Deposit extends Component {
                                 <option value="DAI">DAI</option>
                                 <option value="ETH">ETH</option>
                             </Select>
-                            <input type="submit" value="Submit" />
+                            {/* <input type="submit" value="Submit" /> */}
                         </form>
                         {/* <button onClick={async () => {
                                 console.log(this.eth())
@@ -68,7 +68,7 @@ export class Deposit extends Component {
                         </button> */}
                     </div>
                     <div className="box c">
-                            Value of Wallet: {this.props.balanceInEth} {this.chosenCurrency}
+                            Value of Wallet: {this.props.balanceInEth} {this.state.chosenCurrency}
                     </div>
                     <div className="box d">
 
