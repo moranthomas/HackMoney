@@ -8,6 +8,11 @@ from pathlib import Path
 from typing import Any, Mapping, Union
 import brownie
 
+# Disable CDAI and/or CETH to speed up script
+_ENABLE_CDAI = False
+_ENABLE_CUSDC = True
+_ENABLE_CETH = False
+
 _ABI = dict(
     (k, json.loads(lzma.decompress(base64.b64decode(v))))
     for k, v in {
@@ -46,6 +51,21 @@ _ABI_IERC20 = _ABI['IERC20']
 def _get_interfaces_dir() -> Path:
     for project in brownie.project.main.get_loaded_projects():
         return project._path.joinpath(project._structure['interfaces'])
+
+def print_text_box(text: str, padding: int=1):
+    inside_width = len(text) + 2*padding
+    box = (
+        f"╔{'═' * inside_width}╗",
+        f"║{text:^{inside_width}}║",
+        f"╚{'═' * inside_width}╝",
+    )
+    print('\n'.join(box))
+
+def token_int_to_dec(amount: int, token: brownie.Contract) -> decimal.Decimal:
+    decimals = token.decimals.call()
+    assert 0 <= decimals <= 18
+    quantum = decimal.Decimal((0, (1,), -decimals))
+    return amount * quantum
 
 def load_mainnet_contract(name: str) -> brownie.Contract:
     interfaces_dir = _get_interfaces_dir()
@@ -168,68 +188,145 @@ def main():
 
     network = brownie.network.main.show_active()
     if brownie.network.chain.id >= 1000 and (network == 'development' or network.find('fork') >= 0):
+        print_text_box('DEPLOYING FUTURE TOKEN')
         FUT = FutureToken.deploy({'from': accounts[0]})
+        print_text_box('DEPLOYING PROXY WALLET')
         PW = ProxyWallet.deploy(FUT, COMPTROLLER, UNISWAP, {'from': accounts[0]})
-        PW.addCEtherToken(CETH, {'from': accounts[0]})
-        PW.addCErc20Token(CUSDC, {'from': accounts[0]})
-        PW.addCErc20Token(CDAI, {'from': accounts[0]})
+        if _ENABLE_CETH:
+            print_text_box('PROXY WALLET: ADDING CETH')
+            PW.addCEtherToken(CETH, {'from': accounts[0]})
+        if _ENABLE_CUSDC:
+            print_text_box('PROXY WALLET: ADDING CUSDC')
+            PW.addCErc20Token(CUSDC, {'from': accounts[0]})
+        if _ENABLE_CDAI:
+            print_text_box('PROXY WALLET: ADDING CDAI')
+            PW.addCErc20Token(CDAI, {'from': accounts[0]})
 
         # Create three proxy wallets for accounts 1 - 3
+        print_text_box('CREATING PROXY WALLETS FOR ACCOUNTS 1 - 3')
         PW1 = ProxyWallet.at(PW.createWalletIfNeeded({'from': accounts[1]}).return_value)
-        PW2 = ProxyWallet.at(PW.createWalletIfNeeded({'from': accounts[1]}).return_value)
-        PW3 = ProxyWallet.at(PW.createWalletIfNeeded({'from': accounts[1]}).return_value)
+        PW2 = ProxyWallet.at(PW.createWalletIfNeeded({'from': accounts[2]}).return_value)
+        PW3 = ProxyWallet.at(PW.createWalletIfNeeded({'from': accounts[3]}).return_value)
 
+        print_text_box('BUYING USDC FROM UNISWAP INTO ACCOUNTS 1 - 3')
         # Buy $10,000, $50,000, and $100,000 of USDC into accounts 1 - 3
         for acct, amount in zip(accounts[1:4], (10000, 50000, 100000)):
             raw_amount = amount * 10**USDC.decimals()
             raw_amount_eth = int(amount * 10**18 / 1000)
-            deadline = brownie.chain.time() + 3600
+            deadline = brownie.chain.time() + 300
             UNISWAP.swapETHForExactTokens(raw_amount, [WETH, USDC], acct, deadline, {'from': acct, 'value': raw_amount_eth})
 
-        # Determine next expiry at least 1,024 blocks away & create new future class, long and short
-        EXP = FUT.calcNextExpiryBlockAfter(1024)
-        FCU, FLU, FSU = (
-            FutureToken.at(addr)
-            for addr in FUT.getOrCreateExpiryClassLongShort(
-                            CUSDC,
-                            EXP,
-                            {'from': accounts[0]},
-                        ).return_value
-        )
-        FCD, FLD, FSD = (
-            FutureToken.at(addr)
-            for addr in FUT.getOrCreateExpiryClassLongShort(
-                            CDAI,
-                            EXP,
-                            {'from': accounts[0]},
-                        ).return_value
-        )
-        FCE, FLE, FSE = (
-            FutureToken.at(addr)
-            for addr in FUT.getOrCreateExpiryClassLongShort(
-                            CETH,
-                            EXP,
-                            {'from': accounts[0]},
-                        ).return_value
-        )
+        # Determine next expiry at least 196,608 blocks away (48 chunks i.e. ~1 month) & create new future class, long and short
+        EXP = FUT.calcNextExpiryBlockAfter(48*4096)
+        if _ENABLE_CUSDC:
+            print_text_box(f'CREATING CUSDC FUTURES FOR EXPIRY {EXP}')
+            FCU, FLU, FSU = (
+                FutureToken.at(addr)
+                for addr in FUT.getOrCreateExpiryClassLongShort(
+                                CUSDC,
+                                EXP,
+                                {'from': accounts[0]}).return_value)
+        if _ENABLE_CETH:
+            print_text_box(f'CREATING CDAI FUTURES FOR EXPIRY {EXP}')
+            FCD, FLD, FSD = (
+                FutureToken.at(addr)
+                for addr in FUT.getOrCreateExpiryClassLongShort(
+                                CDAI,
+                                EXP,
+                                {'from': accounts[0]}).return_value)
+        if _ENABLE_CETH:
+            print_text_box(f'CREATING CETH FUTURES FOR EXPIRY {EXP}')
+            FCE, FLE, FSE = (
+                FutureToken.at(addr)
+                for addr in FUT.getOrCreateExpiryClassLongShort(
+                                CETH,
+                                EXP,
+                                {'from': accounts[0]}).return_value)
 
+        print_text_box(f'CREATING UNISWAP LIQUIDITY POOLS FOR FUTURES')
         # Create Uniswap long/short, long/ctoken, short/ctoken pools
+        token_sets = []
+        if _ENABLE_CETH: token_sets.append((FLE, FSE, CETH))
+        if _ENABLE_CUSDC: token_sets.append((FLU, FSU, CUSDC))
+        if _ENABLE_CDAI: token_sets.append((FLD, FSD, CDAI))
         for tok0, tok1 in itertools.chain.from_iterable(
-            itertools.combinations(x, 2) for x in (
-                (FLU, FSU, CUSDC),
-                (FLD, FSD, CDAI),
-                (FLE, FSE, CETH),
-        )):
+            itertools.combinations(x, 2) for x in token_sets
+        ):
             UNISWAP_FACTORY.createPair(tok0, tok1, {'from': accounts[0]})
 
-        FLU_FSU = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLU, FSU))
-        FLU_CUSDC = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLU, CUSDC))
-        FSU_CUSDC = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FSU, CUSDC))
+        if _ENABLE_CETH:
+            FLE_FSE = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLE, FSE))
+            FLE_CETH = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLE, CETH))
+            FSE_CETH = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FSE, CETH))
 
-        FLD_FSD = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLD, FSD))
-        FLD_CDAI = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLD, CDAI))
-        FSD_CDAI = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FSD, CDAI))
+        if _ENABLE_CUSDC:
+            FLU_FSU = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLU, FSU))
+            FLU_CUSDC = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLU, CUSDC))
+            FSU_CUSDC = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FSU, CUSDC))
 
-        FLE_FSE = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLE, FSE))
-        FLE_CETH = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLE, CETH))
-        FSE_CETH = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FSE, CETH))
+        if _ENABLE_CDAI:
+            FLD_FSD = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLD, FSD))
+            FLD_CDAI = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FLD, CDAI))
+            FSD_CDAI = brownie.interface.IUniswapV2Pair(UNISWAP_FACTORY.getPair(FSD, CDAI))
+
+        print_text_box('MAKING ACCOUNT 5 A USDC MINTER')
+        # Make account 5 a USDC minter with a $1 billion limit
+        USDC_MASTER_MINTER = USDC.masterMinter.call()
+        USDC.configureMinter(accounts[5], 1_000_000_000_000000, {'from': USDC_MASTER_MINTER})
+
+        print_text_box('FUNDING ACCOUNT 4 WITH NEWLY MINTED USDC')
+        # Fund account 4 with newly minted $10 million of USDC
+        USDC.mint(accounts[4], 10_000_000_000000, {'from': accounts[5]})
+
+        amount = 2_000_000_000000
+        print_text_box(f'MINTING CUSDC FROM {token_int_to_dec(amount, USDC):,} USDC')
+        txdict = {'from': accounts[4]}
+        amount_cusdc = CUSDC.balanceOf(accounts[4])
+        assert amount_cusdc == 0, "CUSDC balance of account should be zero"
+        USDC.approve(CUSDC, amount, txdict)
+        CUSDC.mint(amount, txdict)
+        amount_cusdc = CUSDC.balanceOf(accounts[4])
+        assert amount_cusdc > 0, "CUSDC balance of account should be greater than zero"
+
+        COL_FAC = decimal.Decimal(FCU.collateralFactor()) / 10**18
+        amount_cusdc = int(amount_cusdc / 2) # use half for minting, half for liquidity provision
+        amount_ftoken_pairs = int(amount_cusdc / COL_FAC) # note amount_cusdc already scaled; future tokens have same decimals as underlying ctokens
+        print_text_box(f'MINTING {token_int_to_dec(amount_ftoken_pairs, FLU):,} LONG & SHORT FUTURE TOKENS FROM {token_int_to_dec(amount_cusdc, CUSDC):,} USDC FOR EXPIRY {EXP}')
+        CUSDC.approve(FCU, amount_cusdc, txdict)
+        FCU.mintPairs(amount_ftoken_pairs, amount_cusdc, txdict)
+        amount_flu = FLU.balanceOf(accounts[4])
+        amount_fsu = FSU.balanceOf(accounts[4])
+        assert amount_flu == amount_ftoken_pairs, f'FLU balance: expected {amount_ftoken_pairs:,} actual {amount_fcl,}'
+        assert amount_fsu == amount_ftoken_pairs, f'FSU balance: expected {amount_ftoken_pairs:,} actual {amount_fcs,}'
+
+        COL_LONG_SPLIT = decimal.Decimal('0.3')
+        amount_cusdc_long = int(amount_cusdc * COL_LONG_SPLIT)
+        amount_cusdc_short = amount_cusdc - amount_cusdc_long
+
+        print_text_box(f'ADDING FLU/CUSDC LIQUIDITY {token_int_to_dec(amount_flu, FLU):,} FLU + {token_int_to_dec(amount_cusdc_long, CUSDC):,} CUSDC FOR EXPIRY {EXP}')
+
+        deadline = brownie.chain.time() + 300
+        amount_flu_cusdc = FLU_CUSDC.balanceOf(accounts[4])
+        amount_fsu_cusdc = FSU_CUSDC.balanceOf(accounts[4])
+        assert amount_flu_cusdc == 0, "FLU/CUSDC balance of account should be zero"
+        assert amount_fsu_cusdc == 0, "FSU/CUSDC balance of account should be zero"
+
+        FLU.approve(UNISWAP, amount_flu, txdict)
+        CUSDC.approve(UNISWAP, amount_cusdc, txdict)
+        UNISWAP.addLiquidity(FLU, CUSDC,
+                             amount_flu, amount_cusdc_long,
+                             amount_flu, amount_cusdc_long,
+                             accounts[4], deadline, txdict)
+        amount_flu_cusdc = FLU_CUSDC.balanceOf(accounts[4])
+        assert amount_flu_cusdc > 0, "FLU/CUSDC balance of account should be greater than zero"
+
+        print_text_box(f'ADDING FSU/CUSDC LIQUIDITY {token_int_to_dec(amount_fsu, FSU):,} FSU + {token_int_to_dec(amount_cusdc_short, CUSDC):,} CUSDC FOR EXPIRY {EXP}')
+
+        FSU.approve(UNISWAP, amount_fsu, txdict)
+        CUSDC.approve(UNISWAP, amount_cusdc, txdict)
+        UNISWAP.addLiquidity(FSU, CUSDC,
+                             amount_fsu, amount_cusdc_short,
+                             amount_fsu, amount_cusdc_short,
+                             accounts[4], deadline, txdict)
+        amount_fsu_cusdc = FSU_CUSDC.balanceOf(accounts[4])
+        assert amount_fsu_cusdc > 0, "FSU/CUSDC balance of account should be greater than zero"
