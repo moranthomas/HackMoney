@@ -191,17 +191,7 @@ def main():
     if brownie.network.chain.id >= 1000 and (network == 'development' or network.find('fork') >= 0):
         print_text_box('DEPLOYING FUTURE TOKEN')
         FUT = FutureToken.deploy({'from': accounts[0]})
-<<<<<<< HEAD
-
-        #PW = ProxyWallet.deploy({'from': accounts[0]})
-        #fund development account with ETH
-        #accounts[2].transfer( to='0x08076ef44737edC609E1dDbb05cfe142cA1ceF17', amount=100*1e18)
-        #create account object so can interact with this account in brownie
-        #accounts.at('0x08076ef44737edC609E1dDbb05cfe142cA1ceF17', force=True)
-    
-=======
         print_text_box('DEPLOYING PROXY WALLET')
->>>>>>> kp/one
         PW = ProxyWallet.deploy(FUT, COMPTROLLER, UNISWAP, {'from': accounts[0]})
         if _ENABLE_CETH:
             print_text_box('PROXY WALLET: ADDING CETH')

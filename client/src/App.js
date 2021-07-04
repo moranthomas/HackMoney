@@ -127,21 +127,29 @@ class App extends Component {
 
       //get the blockNumber to calculate the nextExpiry
       const blockNumber = await web3.eth.getBlockNumber();
+      console.log('block height ' + blockNumber);
       //find out what the next Expiry block is that is at least 1024 blocks from now
-      const nextExpiry = await futureTokenMaster.methods.calcNextExpiryBlockAfter(48*4096).call(); 
+      var nextExpiry = await futureTokenMaster.methods.calcNextExpiryBlockAfter(48*4096).call(); 
       
       var futureTokens = []
 
       try{
         futureTokens = await futureTokenMaster.methods.getExpiryClassLongShort(cUsdcAddress,nextExpiry).call(); //with that and the cUSDC token address, we can get the three tokens
         
+        //sometimes the future tokens are created right at a multiple of 4096, then the expiry might be missed
+        if(futureTokens[0] = '0x0000000000000000000000000000000000000000'){
+          console.log('trying again to find expiry')
+          nextExpiry = nextExpiry-4096;
+          futureTokens = await futureTokenMaster.methods.getExpiryClassLongShort(cUsdcAddress,nextExpiry).call();
+        }
+
         //we have the token address, so now lets create future token class contract instances
         //const futureTokenClassAbi = futureTokenClassJson.abi;
         const futureTokenClass = new web3.eth.Contract(
           futureTokenAbi,
           futureTokens[0].toString(),
         )
-        console.log('futureTokenClass is good')
+        console.log('futureTokenClass ' + futureTokens[0].toString());
         //lets make futureTokenShort contract instance too
         const futureTokenShort = new web3.eth.Contract(
           futureTokenAbi,
@@ -188,7 +196,7 @@ class App extends Component {
         this.setState({impFixedApy : impFixedApy});
       }
         catch(error){
-          console.log('looks like the future tokens were not instantiated')
+          console.log('looks like the future tokens were not instantiated. Check the Expiry Block')
         }
 
 
@@ -271,7 +279,7 @@ class App extends Component {
                 balanceInEth={this.state.balanceInEth}
                 balanceInUSDC={this.state.balanceInUSDC}
                 //add userWallet as a prop
-                userWalletDisplay={this.state.proxyWalletDisplay}
+                proxyWalletDisplay={this.state.proxyWalletDisplay}
                 impFixedApy={this.state.impFixedApy}
                 />
 
