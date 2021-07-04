@@ -311,7 +311,6 @@ contract FutureToken is
 	return bytes8(uint64(y));
     }
  
-<<<<<<< HEAD
      function initializeChild(CTokenInterface ctoken, uint8 decimals, uint32 expiry_block, InstanceType instance_type) external {
 	 require(instance_type == InstanceType.Long
 		 || instance_type == InstanceType.Short
@@ -374,74 +373,6 @@ contract FutureToken is
 	 require(ctoken_decimals <= 18); // dev: ctokens with more than 18 decimals not supported
 
 	 /*	 
-=======
-    function initializeChild(CTokenInterface ctoken, uint8 decimals, uint32 expiry_block, InstanceType instance_type) external {
-	require(instance_type == InstanceType.Long
-		|| instance_type == InstanceType.Short
-		|| instance_type == InstanceType.Class); // dev: must be long, short or class
-	require(address(this) == _getAddress(msg.sender, ctoken, expiry_block, instance_type)); // dev: must be called by base
-	require(address(ctoken) != address(0)); // dev: ctoken must be non-zero
-	require(uint(expiry_block) >= block.number); // dev: expiry must not be in past
-	require(expiry_block == calcExpiryBlock(expiry_block)); // dev: expiry must be a valid expiry
-	require(_instance_type == InstanceType.None); // dev: instance type must be uninitialized
-	require(_owner == address(0)); // dev: owner must be uninitialized
-	require(_class_create_block == 0); // dev: class create block must be uninitialized
-	require(_class_expiry_block == 0); // dev: class expiry block must be uninitialized
-	require(_class_settle_block == 0); // dev: class expiry block must be uninitialized
-	require(_class_ctoken_decimals == 0); // dev: series decimal must be uninitialized
-	require(_class_create_price == 0); // dev: class create price must be uninitialized
-	require(_class_settle_price == 0); // dev: class settle price block must be uninitialized
-	require(address(_class_series_short) == address(0)); // dev: class series short must be uninitialized
-	require(address(_class_series_long) == address(0)); // dev: class series long must be uninitialized
-	require(address(_series_class_owner) == address(0)); // dev: series class owner must be uninitialized
-	require(_series_totalSupply == 0); // dev: series total supply must be uninitialized
-
-	_instance_type = instance_type;
-	_class_ctoken = ctoken;
-	_class_create_block = uint32(block.number);
-	_class_expiry_block = expiry_block;
-	if (instance_type == InstanceType.Class) {
-	    _class_series_short = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Short));
-	    _class_series_long = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Long));
-	    _class_ctoken_decimals = decimals;
-	    _class_create_price = ctoken.exchangeRateCurrent();
-	} else {
-	    _class_ctoken_decimals = decimals;
-	    _series_class_owner = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Class));
-
-	    // As SERIES_EXPIRY_BITS is 12 ("chunk" size of 4,096), the last three hexadecimal digits of the
-	    // expiry block will always be zero, hence omit last three bytes of the hex encoded expiry block.
-	    bytes5 expiry_hex_prefix = bytes5(uint40(uint64(uint32ToHex(expiry_block >> (SERIES_EXPIRY_BITS/4*4)))));
-	    _series_symbol = string(abi.encodePacked("CVX/",
-						     ctoken.symbol(),
-						     "/0x",
-						     expiry_hex_prefix,
-						     instance_type == InstanceType.Short ? "/S" :
-						     instance_type == InstanceType.Long ? "/L" : ""));
-	}
-    }
-
-    function getExpiryClassLongShort(CTokenInterface ctoken, uint256 expiry) external view onlyIfBase returns (address, address, address) {
-	address addr_class = _getAddress(address(this), ctoken, expiry, InstanceType.Class);
-	address addr_long = _getAddress(address(this), ctoken, expiry, InstanceType.Long);
-	address addr_short = _getAddress(address(this), ctoken, expiry, InstanceType.Short);
-
-	if (!addr_class.isContract()) addr_class = address(0);
-	if (!addr_long.isContract()) addr_long = address(0);
-	if (!addr_short.isContract()) addr_short = address(0);
-
-	return (addr_class, addr_long, addr_short);
-    }
-
-    function getOrCreateExpiryClassLongShort(CTokenInterface ctoken, uint32 expiry_block) external onlyIfBase returns (address, address, address) {
-	require(address(ctoken) != address(0)); // dev: ctoken must be non-zero
-	require(uint(expiry_block) >= block.number); // dev: expiry must not be in past
-
-	uint8 ctoken_decimals = ctoken.decimals();
-	require(ctoken_decimals <= 18); // dev: ctokens with more than 18 decimals not supported
-
-    /*	 
->>>>>>> kp/one
     function supply(uint256 amount) external returns (bool) {
 	require(amount > 0); // dev: amount must be non-zero
 	require(_class_ctoken.transferFrom(msg.sender, address(this), amount)); // dev: inbound transfer of ctokens failed
