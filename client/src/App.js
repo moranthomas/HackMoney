@@ -244,7 +244,7 @@ class App extends Component {
                 balanceInEth={this.state.balanceInEth}
                 balanceInUSDC={this.state.balanceInUSDC}
                 //add userWallet as a prop
-                userWalletDisplay={this.state.userWalletDisplay}
+                userWalletDisplay={this.state.userWalletDisplay}  
                 />
 
                 <OnboardingButton></OnboardingButton>
