@@ -5,15 +5,11 @@ import Banner from './layout/Banner';
 import './App.css';
 import getWeb3 from "./getWeb3";
 import map from "./artifacts/deployments/map.json";               // map gets created on brownie deploy
-import ProxyWallet from "./artifacts/contracts/ProxyWallet.json";   // for Abi
-import FutureToken from "./artifacts/contracts/FutureToken.json";   // for Abi
+import ProxyWalletJSON from "./artifacts/contracts/ProxyWallet.json";   // for Abi
+import FutureTokenJSON from "./artifacts/contracts/FutureToken.json";   // for Abi
 import Compound from '@compound-finance/compound-js';
 import MetaMaskOnboarding from '@metamask/onboarding'
 import { OnboardingButton } from './components/OnboardingButton';
-
-//here are the changes as far as pwclone goes in terms of imports
-import futureTokenClassJson from "./artifacts/contracts/FutureTokenClass.json"; //import futureTokenClass Abi
-import futureTokenSeriesJson from "./artifacts/contracts/FutureTokenSeries.json"; //import futureTokenClass Abi
 
 const config = require('./config/config_mainnet.json');
 
@@ -57,18 +53,18 @@ class App extends Component {
       this.setState({ chainId: chainId });
 
       //when brownie deploys contracts with helper, it drops in more addresses
-      const ProxyWalletAddress = map.dev.ProxyWallet[map.dev.ProxyWallet.length-1].toString(); 
-      const ProxyWalletAbi = ProxyWallet.abi;
-      const ProxyWalletInstance = new web3.eth.Contract(
-        ProxyWalletAbi,
-        ProxyWalletAddress,
+      const proxyWalletMasterAddress = map.dev.ProxyWallet[map.dev.ProxyWallet.length-1].toString(); 
+      const proxyWalletAbi = ProxyWalletJSON.abi;
+      const proxyWalletMaster = new web3.eth.Contract(
+        proxyWalletAbi,
+        proxyWalletMasterAddress,
       );
      
-      const FutureTokenAddress = map.dev.FutureToken[map.dev.FutureToken.length-1].toString();
-      const FutureTokenAbi = FutureToken.abi;
-      const FutureTokenInstance = new web3.eth.Contract(
-        FutureTokenAbi,
-        FutureTokenAddress,
+      const futureTokenMasterAddress = map.dev.FutureToken[map.dev.FutureToken.length-1].toString();
+      const futureTokenAbi = FutureTokenJSON.abi;
+      const futureTokenMaster = new web3.eth.Contract(
+        futureTokenAbi,
+        futureTokenMasterAddress,
       );
 
       // cUSDC address and ABI
@@ -81,31 +77,32 @@ class App extends Component {
       );
 
 
-      console.log('proxyWalletInstance: ' + ProxyWalletInstance);
+      console.log('proxyWalletMaster: ' + proxyWalletMaster);
       
       //Goal is to create a wallet contract instance
       //this transaction gets or creates a wallet if needed.
       //we should check if the userAccount already has a wallet deployed
       //declare a walletAddress variable
-      var walletAddress = '';
+      var proxyWalletAddress = '';
       
       try {
         //try calling the getClone method. If there is no clone, then we will get an error
-        walletAddress = await ProxyWalletInstance.methods.getWallet().call({'from': userAccounts[0]});
+        proxyWalletAddress = await proxyWalletMaster.methods.getWallet().call({'from': userAccounts[0]});
       }
         catch (error){
         //on the error, ask user to send a transaction creating a clone and console print the cloneAddress
-        walletAddress= await ProxyWalletInstance.methods.createWalletIfNeeded().send({'from': userAccounts[0]});
+        proxyWalletAddress= await proxyWalletMaster.methods.createWalletIfNeeded().send({'from': userAccounts[0]});
       }
-      console.log('wallet address is : ' + walletAddress);
+      console.log('wallet address is : ' + proxyWalletAddress);
       //now we have the walletAddress
       //lets create a wallet web3 contract instance that we can work with
       //the walletContract will have the same abi as the ProxyWalletInstance
-      const walletContract = new web3.eth.Contract(
-        ProxyWalletAbi,
-        walletAddress,
+      const proxyWallet = new web3.eth.Contract(
+        proxyWalletAbi,
+        proxyWalletAddress,
       );
-      this.setState({ userWalletDisplay: walletAddress.substring(0,8) });
+      this.setState({ proxyWalletDisplay: proxyWalletAddress.substring(0,8) });
+      console.log('proxyWalletAddress ' + this.state.proxyWalletDisplay);
       
       //The goal here is to find out the futureClass Token expiry block
       //We will assume that the script has run and there is an exisiting expiry
@@ -114,22 +111,22 @@ class App extends Component {
       //get the blockNumber to calculate the nextExpiry
       const blockNumber = await web3.eth.getBlockNumber(); 
       //find out what the next Expiry block is that is at least 1024 blocks from now
-      const nextExpiry = await FutureTokenInstance.methods.calcExpiryBlock(blockNumber + 1024).call(); 
+      const nextExpiry = await futureTokenMaster.methods.calcExpiryBlock(blockNumber + 1024).call(); 
       
       var futureTokens = []
 
       try{
-        futureTokens = await FutureTokenInstance.methods.getExpiryClassLongShort(cUsdcAddress,nextExpiry).call(); //with that and the cUSDC token address, we can get the three tokens
+        futureTokens = await futureTokenMaster.methods.getExpiryClassLongShort(cUsdcAddress,nextExpiry).call(); //with that and the cUSDC token address, we can get the three tokens
         
         //we have the token address, so now lets create future token class contract instances
         //const futureTokenClassAbi = futureTokenClassJson.abi;
         const futureTokenClass = new web3.eth.Contract(
-          FutureToken.abi,
+          futureTokenAbi,
           futureTokens[0].toString(),
         )
         //lets make futureTokenShort contract instance too
         const futureTokenShort = new web3.eth.Contract(
-          FutureToken.abi,
+          futureTokenAbi,
           futureTokens[2].toString(),
         )
 
@@ -139,7 +136,7 @@ class App extends Component {
         console.log('blocks to expiry ' + blocksToExpiry);
 
         //getting price data
-        const prices = await walletContract.methods.getPricing(cUsdcAddress,nextExpiry).call();
+        const prices = await proxyWallet.methods.getPricing(cUsdcAddress,nextExpiry).call();
         const cxr = prices[0];
         console.log('prices[0] ' + prices[0]);
 
@@ -160,7 +157,7 @@ class App extends Component {
 
       //console.log('proxyClone: ' + JSON.stringify(proxyClone) );
 
-      console.log('FutureTokenInstance: ' + FutureTokenInstance);
+      console.log('futureTokenMaster: ' + futureTokenMaster);
       //const futureTokenSupply = await FutureTokenInstance.methods.supply(20).call();
 
       //this.CompoundSupplyRatePerBlock();
@@ -229,8 +226,8 @@ class App extends Component {
                 //pass blocksToExpiry and expiryBlock as props so that we can display it in the deposit page
                 blocksToExpiry={this.state.blocksToExpiry}
                 expiryBlock={this.state.expiryBlock}
-                //add userWallet as a prop
-                userWalletDisplay={this.state.userWalletDisplay}
+                //add proxyWallet as a prop
+                proxyWalletDisplay={this.state.proxyWalletDisplay}
                 />
                 
 

@@ -36,7 +36,7 @@ export default function Navbar(props) {
                 <p style = {accountsStyle} >Network ID: {props.networkId}</p>
                 <p style = {accountsStyle} >Chain ID: {props.chainId} </p>
                 <p style = {accountsStyle} >USDC Exchange Rate: {props.cUSDCxr} </p>
-                <p style = {accountsStyle} >User Wallet: {props.userWalletDisplay} </p>
+                <p style = {accountsStyle} >Proxy Wallet: {props.proxyWalletDisplay} </p>
             </div>
 
         </header>
