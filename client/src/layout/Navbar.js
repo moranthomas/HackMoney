@@ -14,6 +14,7 @@ export default function Navbar(props) {
     const exb = props.expiryBlock;
     const balanceInEth = props.balanceInEth;
     const balanceInUSDC = props.balanceInUSDC;
+    const impFixedApy = props.impFixedApy;
 
     return (
         <header style={headerStyle}>
@@ -34,6 +35,7 @@ export default function Navbar(props) {
                         expiryBlock={exb}
                         balanceInEth={balanceInEth}
                         balanceInUSDC={balanceInUSDC}
+                        impFixedApy={impFixedApy}
                     />
                 )}/>
                 <Route path="/borrow" component={Borrow} />

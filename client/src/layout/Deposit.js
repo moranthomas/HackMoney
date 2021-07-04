@@ -93,7 +93,7 @@ export class Deposit extends Component {
                 </div>
 
                 <div className="implied-rate-box">
-                     Estimated Fixed Implied Rate: 26%
+                     Estimated Fixed Implied Rate: {this.props.impFixedApy}
                 </div>
 
                 <div className="lock-in-fixed-rate">

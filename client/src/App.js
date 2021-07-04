@@ -128,7 +128,7 @@ class App extends Component {
       //get the blockNumber to calculate the nextExpiry
       const blockNumber = await web3.eth.getBlockNumber();
       //find out what the next Expiry block is that is at least 1024 blocks from now
-      const nextExpiry = await futureTokenMaster.methods.calcExpiryBlock(blockNumber + 1024).call(); 
+      const nextExpiry = await futureTokenMaster.methods.calcNextExpiryBlockAfter(48*4096).call(); 
       
       var futureTokens = []
 
@@ -141,21 +141,20 @@ class App extends Component {
           futureTokenAbi,
           futureTokens[0].toString(),
         )
+        console.log('futureTokenClass is good')
         //lets make futureTokenShort contract instance too
         const futureTokenShort = new web3.eth.Contract(
           futureTokenAbi,
           futureTokens[2].toString(),
         )
-
+        console.log('futureTokenShort is good')
         
-        this.setState({expiryBlock: nextExpiry});//set state for the expiryBlock
-        this.setState({blocksToExpiry: blocksToExpiry}); //set State for blocksToExpiry
-        console.log('blocks to expiry ' + blocksToExpiry);
+
 
         //getting price data
         //APY calculation function
         function calcImpliedsftAPY(sft_res, ctok_res, min_xr, cxr, col, blks, bpy){
-          const apy = (min_xr/cxr*(1+col/1e18-sft_res/ctok_res)-1)/blks*bpy;
+          const apy = (min_xr*(1+col/1e18-ctok_res/sft_res)/cxr-1)*bpy/blks;
           return apy;
 
         }
@@ -170,10 +169,23 @@ class App extends Component {
         const collatFactor = await futureTokenShort.methods.collateralFactor().call();
         const blocksToExpiry = await futureTokenClass.methods.blocksToExpiry().call();
         const blocksPerYear = 365*24*60*60/13.15;
+        this.setState({expiryBlock: nextExpiry});//set state for the expiryBlock
+        this.setState({blocksToExpiry: blocksToExpiry}); //set State for blocksToExpiry
+
+        console.log(
+          'sft reserves : ' + sftReserves + '\n' +
+          'cusdc reserves : ' + cUsdcReserves +'\n' +
+          'sft price : ' + cUsdcReserves/sftReserves +'\n' +
+          'minxr : ' + minxr +'\n' +
+          'cxr : ' + cxr +'\n' +
+          'collatFactor : ' + collatFactor +'\n' +
+          'blocksToExpiry : ' + blocksToExpiry +'\n'
+        );
 
         const impFixedApy = calcImpliedsftAPY(sftReserves, cUsdcReserves, minxr, cxr, collatFactor, blocksToExpiry, blocksPerYear);
 
         console.log('current AMM implied APY ' + impFixedApy);
+        this.setState({impFixedApy : impFixedApy});
       }
         catch(error){
           console.log('looks like the future tokens were not instantiated')
@@ -260,6 +272,7 @@ class App extends Component {
                 balanceInUSDC={this.state.balanceInUSDC}
                 //add userWallet as a prop
                 userWalletDisplay={this.state.proxyWalletDisplay}
+                impFixedApy={this.state.impFixedApy}
                 />
 
                 <OnboardingButton></OnboardingButton>
