@@ -13,6 +13,7 @@ export default function Navbar(props) {
     const b2x = props.blocksToExpiry;
     const exb = props.expiryBlock;
     const balanceInEth = props.balanceInEth;
+    const balanceInUSDC = props.balanceInUSDC;
 
     return (
         <header style={headerStyle}>
@@ -32,6 +33,7 @@ export default function Navbar(props) {
                         blocksToExpiry={b2x}
                         expiryBlock={exb}
                         balanceInEth={balanceInEth}
+                        balanceInUSDC={balanceInUSDC}
                     />
                 )}/>
                 <Route path="/borrow" component={Borrow} />
@@ -44,6 +46,7 @@ export default function Navbar(props) {
                 <p style = {accountsStyle} >Chain ID: {props.chainId} </p>
                 <p style = {accountsStyle} >USDC Exchange Rate: {props.cUSDCxr} </p>
                 <p style = {accountsStyle} >ETH Balance: {props.balanceInEth} </p>
+                <p style = {accountsStyle} >USDC Balance: {props.balanceInUSDC} </p>
             </div>
 
         </header>

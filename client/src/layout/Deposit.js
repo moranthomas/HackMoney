@@ -19,7 +19,7 @@ export class Deposit extends Component {
     handleChangeCurrencyDropdown = async(event) => {
         event.preventDefault();
         var value = event.target.value;
-        console.log('value = ' + value)
+        console.log('new value = ' + value)
         this.setState({ chosenCurrency: value });
 
     }
@@ -68,7 +68,7 @@ export class Deposit extends Component {
                         </button> */}
                     </div>
                     <div className="box c">
-                            Value of Wallet: {this.props.balanceInEth} {this.state.chosenCurrency}
+                            Value of Wallet: {this.state.chosenCurrency == 'ETH' && this.props.balanceInEth}
                     </div>
                     <div className="box d">
 

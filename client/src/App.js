@@ -30,7 +30,8 @@ class App extends Component {
     chainId: '',
     contract: null,
     cUSDCxr: '',
-    balanceInEth: ''
+    balanceInEth: '',
+    balanceInUSDC: ''
   };
 
   isMetaMaskInstalled = () => MetaMaskOnboarding.isMetaMaskInstalled()
@@ -52,13 +53,14 @@ class App extends Component {
       // getEthBalance
       var balance = await web3.eth.getBalance(userAccounts[0]);
       const balanceInEth = web3.utils.fromWei(balance, 'ether');
-      console.log(balanceInEth + ' ETH in wallet');
+      //console.log(balanceInEth + ' ETH in wallet');
       this.setState( { balanceInEth: balanceInEth });
 
       // getUSDCTokenBalance
       const USDContractInstance = await new web3.eth.Contract(config.usdcAbi, config.usdcAddress);
       let usdcBalance = await USDContractInstance.methods.balanceOf(userAccounts[0]).call();
       //sdcBalance = web3.utils.hexToNumber(usdcBalance) / Math.pow(10, 6);
+      this.setState( { balanceInUSDC: usdcBalance });
       console.log(' usdcBalance == $ ' + usdcBalance );
 
       let displayAccount = userAccounts[0].substring(0,8);
@@ -228,6 +230,7 @@ class App extends Component {
                 blocksToExpiry={this.state.blocksToExpiry}
                 expiryBlock={this.state.expiryBlock}
                 balanceInEth={this.state.balanceInEth}
+                balanceInUSDC={this.state.balanceInUSDC}
                 />
 
                 <OnboardingButton></OnboardingButton>
