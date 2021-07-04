@@ -31,7 +31,8 @@ class App extends Component {
     contract: null,
     cUSDCxr: '',
     balanceInEth: '',
-    balanceInUSDC: ''
+    balanceInUSDC: '',
+    walletContract: null
   };
 
   isMetaMaskInstalled = () => MetaMaskOnboarding.isMetaMaskInstalled()
@@ -116,7 +117,7 @@ class App extends Component {
         ProxyWalletAbi,
         walletAddress,
       );
-
+      this.setState({walletContract: walletContract});
       this.setState({ userWalletDisplay: walletAddress.substring(0,8) });
 
       //The goal here is to find out the futureClass Token expiry block
@@ -245,6 +246,7 @@ class App extends Component {
                 balanceInUSDC={this.state.balanceInUSDC}
                 //add userWallet as a prop
                 userWalletDisplay={this.state.userWalletDisplay}
+                walletContract={this.state.walletContract}
                 />
 
                 <OnboardingButton></OnboardingButton>

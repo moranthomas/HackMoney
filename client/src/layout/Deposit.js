@@ -2,18 +2,27 @@ import React, { Component } from 'react'
 import styled from "styled-components";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faInfoCircle, faNetworkWired, faSync} from '@fortawesome/free-solid-svg-icons';
+import getWeb3 from "../getWeb3";
 export class Deposit extends Component {
-
-
-    // constructor() {
-    //     super();
-    //     this.handleChangeCurrencyDropdown = this.handleChangeCurrencyDropdown.bind(this);
-    //     //this.handleSubmit = this.handleSubmit.bind(this);
-    // }
 
     state = {
         amountEth: '',
-        chosenCurrency: ''
+        chosenCurrency: '',
+        web3: '',
+        amountValue: ''
+    };
+
+    componentDidMount = async () => {
+        try {
+            const web3 = await getWeb3();
+            this.setState({ web3: web3 });
+        } catch (error) {
+            // Catch any errors for any of the above operations.
+            alert(
+            `Failed to load web3, accounts, or contract. Check console for details.`,
+            );
+            console.error(error);
+        }
     };
 
     handleChangeCurrencyDropdown = async(event) => {
@@ -24,16 +33,43 @@ export class Deposit extends Component {
 
     }
 
+    handleChangeInputAmount = async(event) => {
+        const amount  = event.target.value;
+        console.log(amount);
+        this.setState({ amountValue: amount});
+    }
+
+    handleSubmitDeposit = async(event) => {
+        event.preventDefault();
+        const { accounts, contract } = this.state;
+        var amtEthValue = Number(this.state.amountEth);
+        amtEthValue = this.state.amountValue;
+
+        console.log('amountEth: ' + amtEthValue );
+        console.log('depositing to proxy contract!' + this.props.walletContract)
+
+        // Always use arrow functions to avoid scoping and 'this' issues like having to use 'self'
+        // in general we should probably use .transfer() over .send() method
+        const depositResponse = await this.props.walletContract.methods.deposit(
+            amtEthValue, '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE').send({'from': this.props.accounts[0]});
+
+        console.log('depositResponse: ' + JSON. stringify(depositResponse) );
+        // // Update state with the result
+        // var updatedAmountEth = Number(this.state.amountEth) + amtEthValue;
+        // this.setState({ amountEth: updatedAmountEth });
+    }
+
+
     render() {
         const Select = styled.select`
-        width: 100%;
-        height: 35px;
-        background: white;
-        color: gray;
-        padding-left: 5px;
-        font-size: 14px;
-        border: none;
-        margin-left: 10px;
+            width: 100%;
+            height: 35px;
+            background: white;
+            color: gray;
+            padding-left: 5px;
+            font-size: 14px;
+            border: none;
+            margin-left: 10px;
 
         option {
             color: black;
@@ -45,14 +81,28 @@ export class Deposit extends Component {
         }
         `;
 
+        const Input = styled.input`
+            padding-left: 5px;
+            margin-left: 5px;
+            font-size: 8px;
+            font-weight: 200;
+            width: 85%;
+            color: gray;
+            background: white;
+            border: none;
+            border-radius: 2px;
+        `;
+
+
 
         return (
             <div className="container-borrow">
-
+            <form onSubmit={this.handleSubmit}>
                 <FontAwesomeIcon icon={faSync} size="2x" spin />
                 <div className="wrapper">
+
+
                     <div className="box a">
-                        <form onSubmit={this.handleSubmit}>
                             <Select value={this.state.chosenCurrency} onChange={this.handleChangeCurrencyDropdown}>
                                 <option value="" hidden> Currency </option>
                                 <option value="USDC">USDC</option>
@@ -60,17 +110,20 @@ export class Deposit extends Component {
                                 <option value="ETH">ETH</option>
                             </Select>
                             {/* <input type="submit" value="Submit" /> */}
-                        </form>
-                        {/* <button onClick={async () => {
-                                console.log(this.eth())
-                            }} >
-                            Get Eth balance
-                        </button> */}
+                    </div>
+                    <div className="box b">
+                            Max Value of Wallet: {this.state.chosenCurrency == 'ETH' && this.props.balanceInEth}
+                            {this.state.chosenCurrency}
                     </div>
                     <div className="box c">
-                            Value of Wallet: {this.state.chosenCurrency == 'ETH' && this.props.balanceInEth}
+                            <div>Deposit Funds: </div>
                     </div>
-                    <div className="box d">
+                    <div className="box c">
+                        <Input  defaultValue=""
+                        value={this.state.amountValue}
+                        type="text" onChange={this.handleChangeInputAmount} />
+                    </div>
+                    <div className="box e">
 
                             <Select>
                                 <option value="" hidden>
@@ -83,9 +136,10 @@ export class Deposit extends Component {
                             </Select>
                     </div>
 
-                    <div className="box e">
+                    <div className="box f">
                             Estimated Maturity Date/Time
                     </div>
+
                 </div>
 
                 <div className="info-icon-box">
@@ -96,9 +150,10 @@ export class Deposit extends Component {
                      Estimated Fixed Implied Rate: 26%
                 </div>
 
-                <div className="lock-in-fixed-rate">
-                     Lock in Fixed Rate
+                <div>
+                    <button id="Deposit" className="lock-in-fixed-rate" onClick={this.handleSubmitDeposit.bind(this)}> Lock in Fixed Rate</button>
                 </div>
+                </form>
             </div>
         )
     }

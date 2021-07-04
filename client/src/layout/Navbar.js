@@ -14,6 +14,8 @@ export default function Navbar(props) {
     const exb = props.expiryBlock;
     const balanceInEth = props.balanceInEth;
     const balanceInUSDC = props.balanceInUSDC;
+    const walletContract = props.walletContract;
+    const accounts = props.userAccounts;
 
     return (
         <header style={headerStyle}>
@@ -34,6 +36,9 @@ export default function Navbar(props) {
                         expiryBlock={exb}
                         balanceInEth={balanceInEth}
                         balanceInUSDC={balanceInUSDC}
+                        walletContract={walletContract}
+                        accounts={accounts}
+
                     />
                 )}/>
                 <Route path="/borrow" component={Borrow} />
