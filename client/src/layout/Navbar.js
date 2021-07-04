@@ -47,6 +47,7 @@ export default function Navbar(props) {
                 <p style = {accountsStyle} >USDC Exchange Rate: {props.cUSDCxr} </p>
                 <p style = {accountsStyle} >ETH Balance: {props.balanceInEth} </p>
                 <p style = {accountsStyle} >USDC Balance: {props.balanceInUSDC} </p>
+                <p style = {accountsStyle} >User Wallet: {props.userWalletDisplay} </p>
             </div>
 
         </header>

@@ -117,6 +117,8 @@ class App extends Component {
         walletAddress,
       );
 
+      this.setState({ userWalletDisplay: walletAddress.substring(0,8) });
+
       //The goal here is to find out the futureClass Token expiry block
       //We will assume that the script has run and there is an exisiting expiry
       //we need to first find out the address of the futureClass.
@@ -147,6 +149,16 @@ class App extends Component {
         this.setState({expiryBlock: nextExpiry});//set state for the expiryBlock
         this.setState({blocksToExpiry: blocksToExpiry}); //set State for blocksToExpiry
         console.log('blocks to expiry ' + blocksToExpiry);
+
+        //getting price data
+        const prices = await walletContract.methods.getPricing(cUsdcAddress,nextExpiry).call();
+        const cxr = prices[0];
+        console.log('prices[0] ' + prices[0]);
+
+        const sftReserves = prices[4];
+        const cUsdcReserves = prices[5];
+        const sftPrice = sftReserves/cUsdcReserves;
+                console.log('current AMM implied price ' + sftPrice)
       }
         catch(error){
           console.log('looks like the future tokens were not instantiated')
@@ -163,9 +175,9 @@ class App extends Component {
       console.log('FutureTokenInstance: ' + FutureTokenInstance);
       //const futureTokenSupply = await FutureTokenInstance.methods.supply(20).call();
 
-      this.CompoundSupplyRatePerBlock();
-      const cUsdtAddress = Compound.util.getAddress(Compound.cUSDT);
-      console.log('Compound cUsdtAddress: ' + cUsdtAddress);
+      //this.CompoundSupplyRatePerBlock();
+      //const cUsdtAddress = Compound.util.getAddress(Compound.cUSDT);
+      //console.log('Compound cUsdtAddress: ' + cUsdtAddress);
 
 
 
@@ -231,6 +243,8 @@ class App extends Component {
                 expiryBlock={this.state.expiryBlock}
                 balanceInEth={this.state.balanceInEth}
                 balanceInUSDC={this.state.balanceInUSDC}
+                //add userWallet as a prop
+                userWalletDisplay={this.state.userWalletDisplay}
                 />
 
                 <OnboardingButton></OnboardingButton>
