@@ -3,6 +3,8 @@ import styled from "styled-components";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faInfoCircle, faNetworkWired, faSync} from '@fortawesome/free-solid-svg-icons';
 import getWeb3 from "../getWeb3";
+import { BigNumber } from "bignumber.js";
+const BN = require('bn.js');
 export class Deposit extends Component {
 
     state = {
@@ -82,27 +84,58 @@ export class Deposit extends Component {
 
     handleSubmitDeposit = async(event) => {
         event.preventDefault();
-        const { accounts, contract } = this.state;
-        var amtValueNum = Number(this.state.amountValue);
-        console.log('depositing ' +  amtValueNum + ' of chosen currency to proxy Wallet ' + this.props.proxyWallet)
+        const {
+            accounts,
+            contract,
+            chosenCurrency,
+            web3,
+            amountValue,
+            displayWalletBalance,
+            depositCurrencyValid,
+            depositCurrencyDecimals,
+            depositCurrencyAddress,
+        } = this.state;
+
+        if (!depositCurrencyValid || !amountValue) {
+            console.log('invalid input data, cannot deposit');
+            return;
+        }
+
+        let depositCurrencyMultiplier = BigNumber(10).pow(depositCurrencyDecimals);
+        let scaledAmount = BigNumber(amountValue).times(depositCurrencyMultiplier);
+        let unscaledAmount = scaledAmount.div(depositCurrencyMultiplier);
+        scaledAmount = web3.utils.toBN(scaledAmount);
+
+        console.log('depositing ' + unscaledAmount + ' ' + chosenCurrency + ' (' +
+            scaledAmount + ' scaled) to proxy Wallet ' + this.props.proxyWallet)
 
         const from = this.props.accounts[0];
-        const count = await this.state.web3.eth.getTransactionCount(from);
+        const nonce = await this.state.web3.eth.getTransactionCount(from);
         //const gasPrice = this.state.web3.eth.gasPrice.toNumber();
-        const gasPrice = 80;
-        const nonce = 4;
+        //const gasPrice = 80;
+        //const nonce = 4;
 
         const rawTx = {
             "from": from,
             "nonce": nonce,
-            "gas": 210000,  // == gasLimit (optional)
+            //"gas": 210000,  // == gasLimit (optional)
             // "gasPrice": 4500000,  (optional)
             // "data": 'For testing' (optional)
         };
         // Always use arrow functions to avoid scoping and 'this' issues like having to use 'self'
         // in general we should probably use .transfer() over .send() method
-        const depositResponse = await this.props.proxyWallet.methods.deposit(
-            amtValueNum, '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE').send(rawTx);
+        console.log(
+            'scaledAmount:' + scaledAmount +
+            ' depositCurrencyAddress:' + depositCurrencyAddress +
+            ' expiryBlock:' + this.props.expiryBlock
+        )
+        const depositResponse = await this.props.proxyWallet.methods.depositAndHedge(
+            scaledAmount,
+            depositCurrencyAddress,
+            this.props.expiryBlock,
+            0, // slippage
+            2147483647,
+        ).send(rawTx);
 
         console.log('depositResponse: ' + JSON. stringify(depositResponse) );
 
