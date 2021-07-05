@@ -44,27 +44,28 @@ export default function Navbar(props) {
                 )}/>
                 <Route path="/borrow" component={Borrow} />
 
-
             </div>
             <div style={blockchainInfoStyle}>
-                <p style = {accountsStyle} >Account: {props.displayAccount}</p>
-                <p style = {accountsStyle} >Network ID: {props.networkId}</p>
-                <p style = {accountsStyle} >Chain ID: {props.chainId} </p>
-                <p style = {accountsStyle} >USDC Exchange Rate: {props.cUSDCxr} </p>
-                <p style = {accountsStyle} >ETH Balance: {props.balanceInEth} </p>
-                <p style = {accountsStyle} >USDC Balance: {props.balanceInUSDC} </p>
-                <p style = {accountsStyle} >Proxy Wallet: {props.proxyWalletDisplay} </p>
-                <p style = {accountsStyle} >Proxy Wallet cUSDC: {props.pWalletCusdcBal} </p>
-                <p style = {accountsStyle} >Proxy Wallet SFT: {props.pWalletSftBal} </p>
-                <p style = {accountsStyle} >Proxy Wallet USDC value: {props.pWalletValueUsdc} </p>
-                <p style = {accountsStyle} >Proxy Wallet USDC Maturity: {props.pWalletValueMat} </p>
+                <table>
+                <tr><td textAlign = "right" style = {accountsStyle}>Account</td><td>{props.displayAccount}</td></tr>
+                <tr><td style = {accountsStyle}>Network ID</td><td>{props.networkId}</td></tr>
+                <tr><td style = {accountsStyle}>Chain ID</td><td>{props.chainId}</td></tr>
+                <tr><td style = {accountsStyle}>USDC Exchange Rate</td><td>{props.cUSDCxr}</td></tr>
+                <tr><td style = {accountsStyle}>ETH Balance</td><td>{props.balanceInEth}</td></tr>
+                <tr><td style = {accountsStyle}>USDC Balance</td><td>{props.balanceInUSDC}</td></tr>
+                <tr><td style = {accountsStyle}>Proxy Wallet</td><td>{props.proxyWalletDisplay}</td></tr>
+                <tr><td style = {accountsStyle}>Proxy Wallet cUSDC</td><td>{props.pWalletCusdcBal}</td></tr>
+                <tr><td style = {accountsStyle}>Proxy Wallet SFT</td><td>{props.pWalletSftBal}</td></tr>
+                <tr><td style = {accountsStyle}>Proxy Wallet USDC value</td><td>{props.pWalletValueUsdc}</td></tr>
+                <tr><td style = {accountsStyle}>Proxy Wallet USDC Maturity</td><td>{props.pWalletValueMat}</td></tr>
+                </table>
             </div>
 
         </header>
     )
 }
 
-const accountsStyle = { fontSize: 16, marginBottom: '15px' };
+const accountsStyle = { fontSize: 16, marginBottom: '15px', textAlign: 'right' };
 
 const blockchainInfoStyle = {
     position: 'fixed',
