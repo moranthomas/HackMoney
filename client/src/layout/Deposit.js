@@ -8,8 +8,15 @@ export class Deposit extends Component {
     state = {
         chosenCurrency: '',
         web3: '',
-        amountValue: ''
+        amountValue: '',
+        displayWalletBalance: '',
     };
+
+    currencies = [
+        { label: "USDC", value: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48" },
+        { label: "DAI", value: "0x6b175474e89094c44da98b954eedeac495271d0f" },
+        { label: "ETH", value: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" },
+    ];
 
     componentDidMount = async () => {
         try {
@@ -26,9 +33,14 @@ export class Deposit extends Component {
 
     handleChangeCurrencyDropdown = async(event) => {
         event.preventDefault();
-        var value = event.target.value;
+        let value = event.target.value;
         console.log('new value = ' + value)
-        this.setState({ chosenCurrency: value });
+        let displayWalletBalance = null;
+        if (value == "USDC")
+            displayWalletBalance = this.props.balanceInUSDC;
+        else if (value == "ETH")
+            displayWalletBalance = this.props.balanceInEth;
+        this.setState({ chosenCurrency: value, displayWalletBalance: displayWalletBalance });
     }
 
     handleChangeInputAmount = async(event) => {
@@ -116,15 +128,12 @@ export class Deposit extends Component {
                     <div className="box a">
                             <Select value={this.state.chosenCurrency} onChange={this.handleChangeCurrencyDropdown}>
                                 <option value="" hidden> Currency </option>
-                                <option value="USDC">USDC</option>
-                                <option value="DAI">DAI</option>
-                                <option value="ETH">ETH</option>
+                                {this.currencies.map((item) => <option key={item.label} value={item.label}>{item.label}</option>)}
                             </Select>
                             {/* <input type="submit" value="Submit" /> */}
                     </div>
                     <div className="box b">
-                            Max Value of Wallet: {this.state.chosenCurrency == 'ETH' && this.props.balanceInEth}
-                            {this.state.chosenCurrency}
+                            Max Value of Wallet<br/>{this.state.displayWalletBalance}
                     </div>
                     <div className="box c">
                             <div>Deposit Funds: </div>
