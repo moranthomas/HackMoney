@@ -213,10 +213,10 @@ class App extends Component {
           'blocksToExpiry : ' + blocksToExpiry +'\n'
         );
 
-        const impFixedApy = calcImpliedsftAPY(sftReserves, cUsdcReserves, minxr, cxr, collatFactor, blocksToExpiry, blocksPerYear);
-
+        const impFixedApyRaw = calcImpliedsftAPY(sftReserves, cUsdcReserves, minxr, cxr, collatFactor, blocksToExpiry, blocksPerYear);
+        const impFixedApy = impFixedApyRaw*100
         console.log('current AMM implied APY ' + impFixedApy);
-        this.setState({impFixedApy : impFixedApy});
+        this.setState({impFixedApy : impFixedApy.toFixed(3)});
 
         //here we find out the proxyWallet's cToken balances - raw
         const pWalletCusdcBal = await cUsdcContract.methods.balanceOf(proxyWalletAddress).call()/scaler.cusdc;
@@ -263,10 +263,10 @@ class App extends Component {
 
 
       // consts and formulae
-      const owner = "0xbcd4042de499d14e55001ccbb24a551f3b954096"; //owner of the Contract is also the market maker
-      const expiryDateObject = new Date('June 5 2022');
-      const today = new Date();
-      const msPerYear = 24 * 60 * 60 * 1000 *365; // Number of milliseconds per year
+      //const owner = "0xbcd4042de499d14e55001ccbb24a551f3b954096"; //owner of the Contract is also the market maker
+      //const expiryDateObject = new Date('June 5 2022');
+      //const today = new Date();
+      //const msPerYear = 24 * 60 * 60 * 1000 *365; // Number of milliseconds per year
 
 
       //returns the current exchange rate from cUSDC contract
