@@ -26,8 +26,11 @@ abstract contract FutureTokenClassData {
     uint32 internal _class_expiry_block;
     uint32 internal _class_settle_block;
     uint8 internal _class_ctoken_decimals;
+    uint256 internal _class_collateral_factor;
     uint256 internal _class_create_price;
     uint256 internal _class_settle_price;
+    uint256 internal _class_settle_long;
+    uint256 internal _class_settle_short;
     //    uint256 internal _class_margin_ratio;
     FutureToken internal _class_series_short;
     FutureToken internal _class_series_long;
@@ -97,7 +100,7 @@ abstract contract FutureTokenClass is
     FutureTokenBase,
     FutureTokenClassData
 {
-    function _calcCollateralFactor(uint32 expiry_block, uint32 current_block) pure internal returns (uint256) {
+    function calcCollateralFactor(uint32 expiry_block, uint32 current_block) pure public returns (uint256) {
 	if (current_block >= expiry_block) return 0;
 	uint256 interval_delta = 1 + ((expiry_block - 1) >> SERIES_EXPIRY_BITS) - (current_block >> SERIES_EXPIRY_BITS);
 	//return interval_delta * 8 * 43 / 684375; // 8*43/684375 == 4096*258/2102400000 ~= 4,096 blocks * 25.8% / 2,102,400 blocks per year
@@ -105,25 +108,20 @@ abstract contract FutureTokenClass is
 	return interval_delta * 10_000_000_000_000 * 256 * 43 / 219;
     }
 
-    function collateralFactor() view external returns (uint256) {
-	return _calcCollateralFactor(_class_expiry_block, _class_create_block);
-    }
+    function calcSettleValueLongShort(uint32 expiry_block,
+				      uint32 create_block,
+				      uint256 settle_price,
+				      uint256 create_price) pure public returns (uint256, uint256) {
+	uint256 factor = calcCollateralFactor(expiry_block, create_block);
+	uint256 max_price = create_price + create_price * factor / POW_10_18;
 
-    function ctoken() external view /*onlyIfClass*/ returns (CTokenInterface) {	return _class_ctoken; }
-    function ctokenDecimals() external view /*onlyIfClass*/ returns (uint8) { return _class_ctoken_decimals; }
-    function seriesShort() external view /*onlyIfClass*/ returns (FutureToken) { return _class_series_short; }
-    function seriesLong() external view /*onlyIfClass*/ returns (FutureToken) {	return _class_series_long; }
-    function createBlock() external view /*onlyIfClass*/ returns (uint256) { return _class_create_block; }
-    function expiryBlock() external view /*onlyIfClass*/ returns (uint256) { return _class_expiry_block; }
-    function settleBlock() external view /*onlyIfClass*/ returns (uint256) { return _class_settle_block; }
-    function isExpired() external view returns (bool) {	return _class_settle_block == 0; }
-    function createPrice() external view /*onlyIfClass*/ returns (uint256) { return _class_create_price; }
-    function settlePrice() external view /*onlyIfClass*/ returns (uint256) { return _class_settle_price; }
+	if (settle_price <= create_price) return (0, factor);
+	if (settle_price >= max_price) return (factor, 0);
 
-    function blocksToExpiry() external view /*onlyIfClass*/ returns (uint256) {
-	if (block.number < _class_expiry_block)
-	    return _class_expiry_block - block.number;
-	return 0;
+	uint256 value_long = settle_price * POW_10_18 / create_price - POW_10_18;
+	uint256 value_short = factor - value_long;
+
+	return (value_long, value_short);
     }
 
     function calcExpiryBlock(uint256 blocks) public pure returns (uint256) {
@@ -136,17 +134,50 @@ abstract contract FutureTokenClass is
 	return calcExpiryBlock(after_blocks);
     }
 
+    function ctoken() external view /*onlyIfClass*/ returns (CTokenInterface) {	return _class_ctoken; }
+    function ctokenDecimals() external view /*onlyIfClass*/ returns (uint8) { return _class_ctoken_decimals; }
+    function seriesShort() external view /*onlyIfClass*/ returns (FutureToken) { return _class_series_short; }
+    function seriesLong() external view /*onlyIfClass*/ returns (FutureToken) {	return _class_series_long; }
+    function createBlock() external view /*onlyIfClass*/ returns (uint256) { return _class_create_block; }
+    function expiryBlock() external view /*onlyIfClass*/ returns (uint256) { return _class_expiry_block; }
+    function settleBlock() external view /*onlyIfClass*/ returns (uint256) { return _class_settle_block; }
+    function isExpired() external view returns (bool) {	return _class_settle_block != 0; }
+    function collateralFactor() external view /*onlyIfClass*/ returns (uint256) { return _class_collateral_factor; }
+    function createPrice() external view /*onlyIfClass*/ returns (uint256) { return _class_create_price; }
+    function settlePrice() external view /*onlyIfClass*/ returns (uint256) { return _class_settle_price; }
+
+    function settleValueLongShort() external view /*onlyIfClass*/ returns (uint256, uint256) {
+	require(_class_settle_block != 0); // dev: class has not yet settled
+	return (_class_settle_long, _class_settle_short);
+    }
+
+    function blocksToExpiry() external view /*onlyIfClass*/ returns (uint256) {
+	if (block.number < _class_expiry_block)
+	    return _class_expiry_block - block.number;
+	return 0;
+    }
+
     function expireClass() public onlyIfClass returns (bool) {
-	require(block.number >= _class_expiry_block); // dev: class has not yet expired
+	require(block.number >= _class_expiry_block); // dev: expiry block not yet reached
 	require(_class_settle_block == 0); // dev: class has already been expired
+	uint32 expiry_block = _class_expiry_block;
+	uint32 create_block = _class_create_block;
+	uint256 settle_price = _class_ctoken.exchangeRateCurrent();
+	uint256 create_price = _class_create_price;
 	_class_settle_block = uint32(block.number);
-	_class_settle_price = _class_ctoken.exchangeRateCurrent();
+	_class_settle_price = settle_price;
+	(_class_settle_long, _class_settle_short) =
+	    calcSettleValueLongShort(expiry_block,
+				     create_block,
+				     settle_price,
+				     create_price);
 	return true;
     }
 
     function mintPairs(uint256 mint_amount, uint256 collateral_limit) external returns (bool) {
 	require(mint_amount > 0); // dev: amount must be non-zero
-	uint256 factor = _calcCollateralFactor(_class_expiry_block, _class_create_block);
+	//require(!isExpired()); // dev: cannot mint past expiry
+	uint256 factor = _class_collateral_factor;
 	uint256 collateral = (mint_amount * factor + POW_10_18_MINUS_1) / POW_10_18; // round up
 	require(collateral <= collateral_limit); // dev: required collateral exceeds limit
 	require(_class_ctoken.transferFrom(msg.sender, address(this), collateral)); // dev: inbound transfer of ctokens failed
@@ -157,10 +188,30 @@ abstract contract FutureTokenClass is
 
     function redeemPairs(uint256 burn_amount) external returns (bool) {
 	require(burn_amount > 0); // dev: amount must be non-zero
-	uint256 factor = _calcCollateralFactor(_class_expiry_block, _class_create_block);
+	uint256 factor = _class_collateral_factor;
 	uint256 collateral = burn_amount * factor / POW_10_18; // truncate
 	require(_class_series_short.burn(msg.sender, burn_amount)); // dev: burning short tokens failed
 	require(_class_series_long.burn(msg.sender, burn_amount)); // dev: burning long tokens failed
+	require(_class_ctoken.transfer(msg.sender, collateral)); // dev: outbound transfer of ctokens failed
+	return true;
+    }
+
+    function redeemLong(uint256 burn_amount) external returns (bool) {
+	require(burn_amount > 0); // dev: amount must be non-zero
+	require(_class_settle_block != 0); // dev: class has not yet been expired
+	uint256 factor = _class_settle_long;
+	uint256 collateral = burn_amount * factor / POW_10_18; // truncate
+	require(_class_series_long.burn(msg.sender, burn_amount)); // dev: burning long tokens failed
+	require(_class_ctoken.transfer(msg.sender, collateral)); // dev: outbound transfer of ctokens failed
+	return true;
+    }
+
+    function redeemShort(uint256 burn_amount) external returns (bool) {
+	require(burn_amount > 0); // dev: amount must be non-zero
+	require(_class_settle_block != 0); // dev: class has not yet been expired
+	uint256 factor = _class_settle_short;
+	uint256 collateral = burn_amount * factor / POW_10_18; // truncate
+	require(_class_series_short.burn(msg.sender, burn_amount)); // dev: burning short tokens failed
 	require(_class_ctoken.transfer(msg.sender, collateral)); // dev: outbound transfer of ctokens failed
 	return true;
     }
@@ -311,68 +362,77 @@ contract FutureToken is
 	return bytes8(uint64(y));
     }
  
-     function initializeChild(CTokenInterface ctoken, uint8 decimals, uint32 expiry_block, InstanceType instance_type) external {
-	 require(instance_type == InstanceType.Long
-		 || instance_type == InstanceType.Short
-		 || instance_type == InstanceType.Class); // dev: must be long, short or class
-	 require(address(this) == _getAddress(msg.sender, ctoken, expiry_block, instance_type)); // dev: must be called by base
-	 require(address(ctoken) != address(0)); // dev: ctoken must be non-zero
-	 require(uint(expiry_block) >= block.number); // dev: expiry must not be in past
-	 require(expiry_block == calcExpiryBlock(expiry_block)); // dev: expiry must be a valid expiry
-	 require(_instance_type == InstanceType.None); // dev: instance type must be uninitialized
-	 require(_owner == address(0)); // dev: owner must be uninitialized
-	 require(_class_create_block == 0); // dev: class create block must be uninitialized
-	 require(_class_expiry_block == 0); // dev: class expiry block must be uninitialized
-	 require(_class_settle_block == 0); // dev: class expiry block must be uninitialized
-	 require(_class_ctoken_decimals == 0); // dev: series decimal must be uninitialized
-	 require(_class_create_price == 0); // dev: class create price must be uninitialized
-	 require(_class_settle_price == 0); // dev: class settle price block must be uninitialized
-	 require(address(_class_series_short) == address(0)); // dev: class series short must be uninitialized
-	 require(address(_class_series_long) == address(0)); // dev: class series long must be uninitialized
-	 require(address(_series_class_owner) == address(0)); // dev: series class owner must be uninitialized
-	 require(_series_totalSupply == 0); // dev: series total supply must be uninitialized
+    function initializeChild(CTokenInterface ctoken, uint8 decimals, uint32 expiry_block, InstanceType instance_type) external {
+	require(instance_type == InstanceType.Long
+		|| instance_type == InstanceType.Short
+		|| instance_type == InstanceType.Class); // dev: must be long, short or class
+	require(address(this) == _getAddress(msg.sender, ctoken, expiry_block, instance_type)); // dev: must be called by base
+	require(address(ctoken) != address(0)); // dev: ctoken must be non-zero
+	require(uint(expiry_block) >= block.number); // dev: expiry must not be in past
+	require(expiry_block == calcExpiryBlock(expiry_block)); // dev: expiry must be a valid expiry
+	require(_instance_type == InstanceType.None); // dev: instance type must be uninitialized
+	require(_owner == address(0)); // dev: owner must be uninitialized
+	require(_class_create_block == 0); // dev: class create block must be uninitialized
+	require(_class_expiry_block == 0); // dev: class expiry block must be uninitialized
+	require(_class_settle_block == 0); // dev: class expiry block must be uninitialized
+	require(_class_ctoken_decimals == 0); // dev: series decimal must be uninitialized
+	require(_class_collateral_factor == 0); // dev: class collateral factor must be uninitialized
+	require(_class_create_price == 0); // dev: class create price must be uninitialized
+	require(_class_settle_price == 0); // dev: class settle price must be uninitialized
+	require(_class_settle_long == 0); // dev: class settle long must be uninitialized
+	require(_class_settle_short == 0); // dev: class settle short must be uninitialized
+	require(address(_class_series_short) == address(0)); // dev: class series short must be uninitialized
+	require(address(_class_series_long) == address(0)); // dev: class series long must be uninitialized
+	require(address(_series_class_owner) == address(0)); // dev: series class owner must be uninitialized
+	require(_series_totalSupply == 0); // dev: series total supply must be uninitialized
 
-	 _instance_type = instance_type;
-	 _class_ctoken = ctoken;
-	 _class_create_block = uint32(block.number);
-	 _class_expiry_block = expiry_block;
-	 if (instance_type == InstanceType.Class) {
-	     _class_series_short = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Short));
-	     _class_series_long = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Long));
-	     _class_ctoken_decimals = decimals;
-	     _class_create_price = ctoken.exchangeRateCurrent();
-	 } else {
-	     _class_ctoken_decimals = decimals;
-	     _series_class_owner = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Class));
-	     _series_symbol = string(abi.encodePacked("CVX/",
-						      ctoken.symbol(),
-						      "/0x",
-						      uint32ToHex(expiry_block),
-						      instance_type == InstanceType.Short ? "/S" :
-						      instance_type == InstanceType.Long ? "/L" : "/X"));
-	 }
-     }
+	_instance_type = instance_type;
+	_class_ctoken = ctoken;
 
-     function getExpiryClassLongShort(CTokenInterface ctoken, uint256 expiry) external view onlyIfBase returns (address, address, address) {
-	 address addr_class = _getAddress(address(this), ctoken, expiry, InstanceType.Class);
-	 address addr_long = _getAddress(address(this), ctoken, expiry, InstanceType.Long);
-	 address addr_short = _getAddress(address(this), ctoken, expiry, InstanceType.Short);
+	if (instance_type == InstanceType.Class) {
+	    _class_create_block = uint32(block.number);
+	    _class_expiry_block = expiry_block;
+	    _class_collateral_factor = calcCollateralFactor(expiry_block, uint32(block.number));
+	    _class_series_short = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Short));
+	    _class_series_long = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Long));
+	    _class_ctoken_decimals = decimals;
+	    _class_create_price = ctoken.exchangeRateCurrent();
+	} else {
+	    _class_ctoken_decimals = decimals;
+	    _series_class_owner = FutureToken(_getAddress(msg.sender, ctoken, expiry_block, InstanceType.Class));
 
-	 if (!addr_class.isContract()) addr_class = address(0);
-	 if (!addr_long.isContract()) addr_long = address(0);
-	 if (!addr_short.isContract()) addr_short = address(0);
+	    // As SERIES_EXPIRY_BITS is 12 ("chunk" size of 4,096), the last three hexadecimal digits of the
+	    // expiry block will always be zero, hence omit last three bytes of the hex encoded expiry block.
+	    bytes5 expiry_hex_prefix = bytes5(uint40(uint64(uint32ToHex(expiry_block >> (SERIES_EXPIRY_BITS/4*4)))));
+	    _series_symbol = string(abi.encodePacked("CVX/",
+						     ctoken.symbol(),
+						     "/0x",
+						     expiry_hex_prefix,
+						     instance_type == InstanceType.Short ? "/S" :
+						     instance_type == InstanceType.Long ? "/L" : ""));
+	}
+    }
 
-	 return (addr_class, addr_long, addr_short);
-     }
+    function getExpiryClassLongShort(CTokenInterface ctoken, uint256 expiry) external view onlyIfBase returns (address, address, address) {
+	address addr_class = _getAddress(address(this), ctoken, expiry, InstanceType.Class);
+	address addr_long = _getAddress(address(this), ctoken, expiry, InstanceType.Long);
+	address addr_short = _getAddress(address(this), ctoken, expiry, InstanceType.Short);
 
-     function getOrCreateExpiryClassLongShort(CTokenInterface ctoken, uint32 expiry_block) external onlyIfBase returns (address, address, address) {
-	 require(address(ctoken) != address(0)); // dev: ctoken must be non-zero
-	 require(uint(expiry_block) >= block.number); // dev: expiry must not be in past
+	if (!addr_class.isContract()) addr_class = address(0);
+	if (!addr_long.isContract()) addr_long = address(0);
+	if (!addr_short.isContract()) addr_short = address(0);
 
-	 uint8 ctoken_decimals = ctoken.decimals();
-	 require(ctoken_decimals <= 18); // dev: ctokens with more than 18 decimals not supported
+	return (addr_class, addr_long, addr_short);
+    }
 
-	 /*	 
+    function getOrCreateExpiryClassLongShort(CTokenInterface ctoken, uint32 expiry_block) external onlyIfBase returns (address, address, address) {
+	require(address(ctoken) != address(0)); // dev: ctoken must be non-zero
+	require(uint(expiry_block) >= block.number); // dev: expiry must not be in past
+
+	uint8 ctoken_decimals = ctoken.decimals();
+	require(ctoken_decimals <= 18); // dev: ctokens with more than 18 decimals not supported
+
+    /*	 
     function supply(uint256 amount) external returns (bool) {
 	require(amount > 0); // dev: amount must be non-zero
 	require(_class_ctoken.transferFrom(msg.sender, address(this), amount)); // dev: inbound transfer of ctokens failed

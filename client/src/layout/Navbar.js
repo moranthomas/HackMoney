@@ -1,4 +1,4 @@
-import  React, { useState } from 'react';
+import  React from 'react';
 import { Link } from 'react-router-dom';
 import convexityLogoLight from '../ConvexityLogoLight.png';
 import { Route } from 'react-router-dom';
@@ -6,18 +6,7 @@ import Deposit from './Deposit';
 import Borrow from './Borrow.js';
 
 export default function Navbar(props) {
-
-    // Declare a new state variable, which we'll call "fromAccount"
-    const [fromAccount, setFromAccount] = useState();
-    const [networkId, setNetworkId] = useState();
-    const b2x = props.blocksToExpiry;
-    const exb = props.expiryBlock;
-    const balanceInEth = props.balanceInEth;
-    const balanceInUSDC = props.balanceInUSDC;
-    const impFixedApy = props.impFixedApy;
-    const proxyWallet = props.proxyWallet;
-    const accounts = props.userAccounts;
-
+    const saved_props = props;
     return (
         <header style={headerStyle}>
             <div style={centerFlex}>
@@ -32,39 +21,34 @@ export default function Navbar(props) {
                 {/* <Route path="/" component={Home} /> */}
                 {/* <Route path="/home" component={Home} /> */}
                 <Route path="/deposit" render={(props) => (
-                    <Deposit {...props}
-                        blocksToExpiry={b2x}
-                        expiryBlock={exb}
-                        balanceInEth={balanceInEth}
-                        balanceInUSDC={balanceInUSDC}
-                        impFixedApy={impFixedApy}
-                        proxyWallet={proxyWallet}
-                        accounts={accounts}
+                    <Deposit {...props} {...saved_props}
+                        accounts={saved_props.userAccounts}
                     />
                 )}/>
                 <Route path="/borrow" component={Borrow} />
 
-
             </div>
             <div style={blockchainInfoStyle}>
-                <p style = {accountsStyle} >Account: {props.displayAccount}</p>
-                <p style = {accountsStyle} >Network ID: {props.networkId}</p>
-                <p style = {accountsStyle} >Chain ID: {props.chainId} </p>
-                <p style = {accountsStyle} >USDC Exchange Rate: {props.cUSDCxr} </p>
-                <p style = {accountsStyle} >ETH Balance: {props.balanceInEth} </p>
-                <p style = {accountsStyle} >USDC Balance: {props.balanceInUSDC} </p>
-                <p style = {accountsStyle} >Proxy Wallet: {props.proxyWalletDisplay} </p>
-                <p style = {accountsStyle} >Proxy Wallet cUSDC: {props.pWalletCusdcBal} </p>
-                <p style = {accountsStyle} >Proxy Wallet SFT: {props.pWalletSftBal} </p>
-                <p style = {accountsStyle} >Proxy Wallet USDC value: {props.pWalletValueUsdc} </p>
-                <p style = {accountsStyle} >Proxy Wallet USDC Maturity: {props.pWalletValueMat} </p>
+                <table><tbody>
+                <tr><td textAlign = "right" style = {accountsStyle}>Account</td><td>{props.displayAccount}</td></tr>
+                <tr><td style = {accountsStyle}>Network ID</td><td>{props.networkId}</td></tr>
+                <tr><td style = {accountsStyle}>Chain ID</td><td>{props.chainId}</td></tr>
+                <tr><td style = {accountsStyle}>USDC Exchange Rate</td><td>{props.cUSDCxr}</td></tr>
+                <tr><td style = {accountsStyle}>ETH Balance</td><td>{props.balanceInEth}</td></tr>
+                <tr><td style = {accountsStyle}>USDC Balance</td><td>{props.balanceInUSDC}</td></tr>
+                <tr><td style = {accountsStyle}>Proxy Wallet</td><td>{props.proxyWalletDisplay}</td></tr>
+                <tr><td style = {accountsStyle}>Proxy Wallet cUSDC</td><td>{props.pWalletCusdcBal}</td></tr>
+                <tr><td style = {accountsStyle}>Proxy Wallet SFT</td><td>{props.pWalletSftBal}</td></tr>
+                <tr><td style = {accountsStyle}>Proxy Wallet USDC value</td><td>{props.pWalletValueUsdc}</td></tr>
+                <tr><td style = {accountsStyle}>Proxy Wallet USDC Maturity</td><td>{props.pWalletValueMat}</td></tr>
+                </tbody></table>
             </div>
 
         </header>
     )
 }
 
-const accountsStyle = { fontSize: 16, marginBottom: '15px' };
+const accountsStyle = { fontSize: 16, marginBottom: '15px', textAlign: 'right' };
 
 const blockchainInfoStyle = {
     position: 'fixed',

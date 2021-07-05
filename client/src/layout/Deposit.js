@@ -3,14 +3,58 @@ import styled from "styled-components";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faInfoCircle, faNetworkWired, faSync} from '@fortawesome/free-solid-svg-icons';
 import getWeb3 from "../getWeb3";
+import { BigNumber } from "bignumber.js";
+const BN = require('bn.js');
 export class Deposit extends Component {
 
     state = {
-        amountEth: '',
         chosenCurrency: '',
         web3: '',
-        amountValue: ''
+        amountValue: '',
+        displayWalletBalance: '',
+        depositCurrencyValid: false,
+        depositCurrencyDecimals: null,
+        depositCurrencyAddress: null,
     };
+
+    currencies = [
+        { label: "USDC", value: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48" },
+        { label: "DAI", value: "0x6b175474e89094c44da98b954eedeac495271d0f" },
+        { label: "ETH", value: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" },
+    ];
+
+    selectCurrency(currency) {
+        let depositCurrencyValid = true;
+        let displayWalletBalance = null;
+        let depositCurrencyDecimals = null;
+        let depositCurrencyAddress = null;
+        switch (currency) {
+            case "USDC":
+                displayWalletBalance = this.props.balanceInUSDC;
+                depositCurrencyDecimals = 6;
+                depositCurrencyAddress = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
+                break;
+            case "ETH":
+                displayWalletBalance = this.props.balanceInEth;
+                depositCurrencyDecimals = 18;
+                depositCurrencyAddress = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+                break;
+            case "DAI":
+                displayWalletBalance = 0; // FIXME: to be implemented
+                depositCurrencyDecimals = 18;
+                depositCurrencyAddress = "0x6b175474e89094c44da98b954eedeac495271d0f";
+                break;
+            default:
+                depositCurrencyValid = false;
+        }
+        this.setState({
+            chosenCurrency: currency,
+            displayWalletBalance: displayWalletBalance,
+            depositCurrencyValid: depositCurrencyValid,
+            depositCurrencyDecimals: depositCurrencyDecimals,
+            depositCurrencyAddress: depositCurrencyAddress,
+        });
+    }
 
     componentDidMount = async () => {
         try {
@@ -27,10 +71,9 @@ export class Deposit extends Component {
 
     handleChangeCurrencyDropdown = async(event) => {
         event.preventDefault();
-        var value = event.target.value;
+        let value = event.target.value;
         console.log('new value = ' + value)
-        this.setState({ chosenCurrency: value });
-
+        this.selectCurrency(value);
     }
 
     handleChangeInputAmount = async(event) => {
@@ -41,37 +84,64 @@ export class Deposit extends Component {
 
     handleSubmitDeposit = async(event) => {
         event.preventDefault();
-        const { accounts, contract } = this.state;
-        var amtEthValue = Number(this.state.amountEth);
-        amtEthValue = this.state.amountValue;
+        const {
+            accounts,
+            contract,
+            chosenCurrency,
+            web3,
+            amountValue,
+            displayWalletBalance,
+            depositCurrencyValid,
+            depositCurrencyDecimals,
+            depositCurrencyAddress,
+        } = this.state;
 
-        console.log('amountEth: ' + amtEthValue );
-        console.log('depositing to proxy contract!' + this.props.proxyWallet)
+        if (!depositCurrencyValid || !amountValue) {
+            console.log('invalid input data, cannot deposit');
+            return;
+        }
 
-        // TODO Where should we put the approve function ??
+        let depositCurrencyMultiplier = BigNumber(10).pow(depositCurrencyDecimals);
+        let scaledAmount = BigNumber(amountValue).times(depositCurrencyMultiplier);
+        let unscaledAmount = scaledAmount.div(depositCurrencyMultiplier);
+        scaledAmount = web3.utils.toBN(scaledAmount);
+
+        console.log('depositing ' + unscaledAmount + ' ' + chosenCurrency + ' (' +
+            scaledAmount + ' scaled) to proxy Wallet ' + this.props.proxyWallet)
 
         const from = this.props.accounts[0];
-        const count = await this.state.web3.eth.getTransactionCount(from);
+        const nonce = await this.state.web3.eth.getTransactionCount(from);
         //const gasPrice = this.state.web3.eth.gasPrice.toNumber();
-        const gasPrice = 80;
-        const nonce = 4;
+        //const gasPrice = 80;
+        //const nonce = 4;
 
         const rawTx = {
             "from": from,
             "nonce": nonce,
-            "gas": 210000,          //(optional == gasLimit)
+            //"gas": 210000,  // == gasLimit (optional)
             // "gasPrice": 4500000,  (optional)
             // "data": 'For testing' (optional)
         };
         // Always use arrow functions to avoid scoping and 'this' issues like having to use 'self'
         // in general we should probably use .transfer() over .send() method
-        const depositResponse = await this.props.proxyWallet.methods.deposit(
-            amtEthValue, '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE').send(rawTx);
+        console.log(
+            'scaledAmount:' + scaledAmount +
+            ' depositCurrencyAddress:' + depositCurrencyAddress +
+            ' expiryBlock:' + this.props.expiryBlock
+        )
+        const depositResponse = await this.props.proxyWallet.methods.depositAndHedge(
+            scaledAmount,
+            depositCurrencyAddress,
+            this.props.expiryBlock,
+            0, // slippage
+            2147483647,
+        ).send(rawTx);
 
         console.log('depositResponse: ' + JSON. stringify(depositResponse) );
-        // // Update state with the result
-        // var updatedAmountEth = Number(this.state.amountEth) + amtEthValue;
-        // this.setState({ amountEth: updatedAmountEth });
+
+        // Update state with the result
+        // var updatedAmount = Number(this.state.amount) + amtValue;
+        // this.setState({ amount: updatedAmount });
     }
 
 
@@ -99,9 +169,11 @@ export class Deposit extends Component {
         const Input = styled.input`
             padding-left: 5px;
             margin-left: 5px;
-            font-size: 8px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            font-size: 16px;
             font-weight: 200;
-            width: 85%;
+            width: 75%;
             color: gray;
             background: white;
             border: none;
@@ -120,23 +192,21 @@ export class Deposit extends Component {
                     <div className="box a">
                             <Select value={this.state.chosenCurrency} onChange={this.handleChangeCurrencyDropdown}>
                                 <option value="" hidden> Currency </option>
-                                <option value="USDC">USDC</option>
-                                <option value="DAI">DAI</option>
-                                <option value="ETH">ETH</option>
+                                {this.currencies.map((item) => <option key={item.label} value={item.label}>{item.label}</option>)}
                             </Select>
                             {/* <input type="submit" value="Submit" /> */}
                     </div>
                     <div className="box b">
-                            Max Value of Wallet: {this.state.chosenCurrency == 'ETH' && this.props.balanceInEth}
-                            {this.state.chosenCurrency}
+                            Max Value of Wallet<br/>{this.state.displayWalletBalance}
                     </div>
                     <div className="box c">
                             <div>Deposit Funds: </div>
                     </div>
                     <div className="box c">
                         <Input
-                        value={this.state.amountValue}
-                        type="text" onChange={this.handleChangeInputAmount} />
+                        defaultValue={this.state.amountValue}
+                        onBlur={this.handleChangeInputAmount}
+                        />
                     </div>
                     <div className="box e">
 
@@ -162,7 +232,7 @@ export class Deposit extends Component {
                 </div>
 
                 <div className="implied-rate-box">
-                     Estimated Fixed Implied Rate: {this.props.impFixedApy}
+                     Estimated Fixed Implied Rate: {this.props.impFixedApy} %
                 </div>
 
                 <div>

@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: UNLICENSED
+import os
 import json
 import decimal
 import lzma
@@ -7,6 +8,8 @@ import itertools
 from pathlib import Path
 from typing import Any, Mapping, Union
 import brownie
+
+UINT256_MAX = (1<<256)-1
 
 # Disable CDAI and/or CETH to speed up script
 _ENABLE_CDAI = False
@@ -186,6 +189,11 @@ def main():
     assert CDAI.address == '0x5d3a536E4D6DbD6114cc1Ead35777bAB948E3643'
     assert DAI.address == '0x6B175474E89094C44Da98b954EedeAC495271d0F'
 
+    METAMASK_ACCOUNT = os.environ.get('METAMASK_PRIVATE_KEY')
+    if METAMASK_ACCOUNT:
+        METAMASK_ACCOUNT = accounts.add(METAMASK_ACCOUNT)
+        print_text_box(f'ADDING METAMASK ACCOUNT {METAMASK_ACCOUNT}')
+
     network = brownie.network.main.show_active()
     CUSDC.exchangeRateCurrent({'from': accounts[0]}) #initialize the exchangeRateCurrent so that we don't get revert error
     if brownie.network.chain.id >= 1000 and (network == 'development' or network.find('fork') >= 0):
@@ -279,6 +287,23 @@ def main():
         # Fund account 4 with newly minted $10 million of USDC
         USDC.mint(accounts[4], 10_000_000_000000, {'from': accounts[5]})
 
+        if METAMASK_ACCOUNT:
+            print_text_box(f'FUNDING METAMASK ACCOUNT {METAMASK_ACCOUNT}')
+            accounts[5].transfer(METAMASK_ACCOUNT, 1_000*10**18)
+            USDC.mint(METAMASK_ACCOUNT, 1_000_000_000000, {'from': accounts[5]})
+
+            print_text_box(f'CREATING PROXY WALLET FOR METAMASK ACCOUNT {METAMASK_ACCOUNT}')
+            PW_META = ProxyWallet.at(PW.createWalletIfNeeded({'from': METAMASK_ACCOUNT}).return_value)
+
+            print_text_box(f'SETTING ALLOWANCES FOR METAMAST ACCOUNT {METAMASK_ACCOUNT}')
+            USDC.approve(CUSDC, UINT256_MAX, {'from': METAMASK_ACCOUNT})
+            USDC.approve(PW_META, UINT256_MAX, {'from': METAMASK_ACCOUNT})
+            CUSDC.approve(PW_META, UINT256_MAX, {'from': METAMASK_ACCOUNT})
+            CUSDC.approve(FCU, UINT256_MAX, {'from': METAMASK_ACCOUNT})
+            CUSDC.approve(UNISWAP, UINT256_MAX, {'from': METAMASK_ACCOUNT})
+            FLU.approve(UNISWAP, UINT256_MAX, {'from': METAMASK_ACCOUNT})
+            FSU.approve(UNISWAP, UINT256_MAX, {'from': METAMASK_ACCOUNT})
+
         amount = 2_000_000_000000
         print_text_box(f'MINTING CUSDC FROM {token_int_to_dec(amount, USDC):,} USDC')
         txdict = {'from': accounts[4]}
@@ -288,9 +313,10 @@ def main():
         CUSDC.mint(amount, txdict)
         amount_cusdc = CUSDC.balanceOf(accounts[4])
         assert amount_cusdc > 0, "CUSDC balance of account should be greater than zero"
+        amount_cusc_orig = amount_cusdc
 
         COL_FAC = decimal.Decimal(FCU.collateralFactor()) / 10**18
-        amount_cusdc = int(amount_cusdc / 2) # use half for minting, half for liquidity provision
+        amount_cusdc = amount_cusdc // 2 # use half rounded down for minting, remainder for liquidity provision
         amount_ftoken_pairs = int(amount_cusdc / COL_FAC) # note amount_cusdc already scaled; future tokens have same decimals as underlying ctokens
         print_text_box(f'MINTING {token_int_to_dec(amount_ftoken_pairs, FLU):,} LONG & SHORT FUTURE TOKENS FROM {token_int_to_dec(amount_cusdc, CUSDC):,} USDC FOR EXPIRY {EXP}')
         CUSDC.approve(FCU, amount_cusdc, txdict)
@@ -300,9 +326,13 @@ def main():
         assert amount_flu == amount_ftoken_pairs, f'FLU balance: expected {amount_ftoken_pairs:,} actual {amount_fcl,}'
         assert amount_fsu == amount_ftoken_pairs, f'FSU balance: expected {amount_ftoken_pairs:,} actual {amount_fcs,}'
 
+        amount_cusdc = amount_cusc_orig - amount_cusdc
         COL_LONG_SPLIT = decimal.Decimal('0.3')
         amount_cusdc_long = int(amount_cusdc * COL_LONG_SPLIT)
         amount_cusdc_short = amount_cusdc - amount_cusdc_long
+        assert amount_cusdc_long >= 0
+        assert amount_cusdc_short >= 0
+        assert amount_cusdc_long + amount_cusdc_short == amount_cusdc
 
         print_text_box(f'ADDING FLU/CUSDC LIQUIDITY {token_int_to_dec(amount_flu, FLU):,} FLU + {token_int_to_dec(amount_cusdc_long, CUSDC):,} CUSDC FOR EXPIRY {EXP}')
 
@@ -313,7 +343,7 @@ def main():
         assert amount_fsu_cusdc == 0, "FSU/CUSDC balance of account should be zero"
 
         FLU.approve(UNISWAP, amount_flu, txdict)
-        CUSDC.approve(UNISWAP, amount_cusdc, txdict)
+        CUSDC.approve(UNISWAP, amount_cusdc_long, txdict)
         UNISWAP.addLiquidity(FLU, CUSDC,
                              amount_flu, amount_cusdc_long,
                              amount_flu, amount_cusdc_long,
@@ -324,7 +354,7 @@ def main():
         print_text_box(f'ADDING FSU/CUSDC LIQUIDITY {token_int_to_dec(amount_fsu, FSU):,} FSU + {token_int_to_dec(amount_cusdc_short, CUSDC):,} CUSDC FOR EXPIRY {EXP}')
 
         FSU.approve(UNISWAP, amount_fsu, txdict)
-        CUSDC.approve(UNISWAP, amount_cusdc, txdict)
+        CUSDC.approve(UNISWAP, amount_cusdc_short, txdict)
         UNISWAP.addLiquidity(FSU, CUSDC,
                              amount_fsu, amount_cusdc_short,
                              amount_fsu, amount_cusdc_short,
