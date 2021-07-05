@@ -195,7 +195,7 @@ class App extends Component {
 
         const minxr = await futureTokenClass.methods.createPrice().call();
         const cxr = prices[0];
-        const collatFactor = await futureTokenShort.methods.collateralFactor().call();
+        const collatFactor = await futureTokenClass.methods.collateralFactor().call();
         const blocksToExpiry = await futureTokenClass.methods.blocksToExpiry().call();
         const sftImpXr = ammImpSftXR(sftReserves, cUsdcReserves, minxr, collatFactor);
         const blocksPerYear = 365*24*60*60/13.15;
