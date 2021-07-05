@@ -6,6 +6,7 @@ import Deposit from './Deposit';
 import Borrow from './Borrow.js';
 
 export default function Navbar(props) {
+    const saved_props = props;
     return (
         <header style={headerStyle}>
             <div style={centerFlex}>
@@ -20,15 +21,15 @@ export default function Navbar(props) {
                 {/* <Route path="/" component={Home} /> */}
                 {/* <Route path="/home" component={Home} /> */}
                 <Route path="/deposit" render={(props) => (
-                    <Deposit {...props}
-                        accounts={props.userAccounts}
+                    <Deposit {...props} {...saved_props}
+                        accounts={saved_props.userAccounts}
                     />
                 )}/>
                 <Route path="/borrow" component={Borrow} />
 
             </div>
             <div style={blockchainInfoStyle}>
-                <table>
+                <table><tbody>
                 <tr><td textAlign = "right" style = {accountsStyle}>Account</td><td>{props.displayAccount}</td></tr>
                 <tr><td style = {accountsStyle}>Network ID</td><td>{props.networkId}</td></tr>
                 <tr><td style = {accountsStyle}>Chain ID</td><td>{props.chainId}</td></tr>
@@ -40,7 +41,7 @@ export default function Navbar(props) {
                 <tr><td style = {accountsStyle}>Proxy Wallet SFT</td><td>{props.pWalletSftBal}</td></tr>
                 <tr><td style = {accountsStyle}>Proxy Wallet USDC value</td><td>{props.pWalletValueUsdc}</td></tr>
                 <tr><td style = {accountsStyle}>Proxy Wallet USDC Maturity</td><td>{props.pWalletValueMat}</td></tr>
-                </table>
+                </tbody></table>
             </div>
 
         </header>
