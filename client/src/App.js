@@ -27,7 +27,8 @@ class App extends Component {
     contract: null,
     cUSDCxr: '',
     balanceInEth: '',
-    balanceInUSDC: ''
+    balanceInUSDC: '',
+    walletContract: null
   };
   
 
@@ -127,7 +128,9 @@ class App extends Component {
       );
       this.setState({ proxyWalletDisplay: proxyWalletAddress.substring(0,8) });
       console.log('proxyWalletAddress ' + this.state.proxyWalletDisplay);
-      
+      this.setState({walletContract: walletContract});
+      this.setState({ userWalletDisplay: walletAddress.substring(0,8) });
+
       //The goal here is to find out the futureClass Token expiry block
       //We will assume that the script has run and there is an exisiting expiry
       //we need to first find out the address of the futureClass.

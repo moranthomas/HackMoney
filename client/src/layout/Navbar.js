@@ -15,6 +15,8 @@ export default function Navbar(props) {
     const balanceInEth = props.balanceInEth;
     const balanceInUSDC = props.balanceInUSDC;
     const impFixedApy = props.impFixedApy;
+    const walletContract = props.walletContract;
+    const accounts = props.userAccounts;
 
     return (
         <header style={headerStyle}>
@@ -36,6 +38,8 @@ export default function Navbar(props) {
                         balanceInEth={balanceInEth}
                         balanceInUSDC={balanceInUSDC}
                         impFixedApy={impFixedApy}
+                        walletContract={walletContract}
+                        accounts={accounts}
                     />
                 )}/>
                 <Route path="/borrow" component={Borrow} />
