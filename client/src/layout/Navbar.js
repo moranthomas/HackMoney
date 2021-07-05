@@ -4,13 +4,19 @@ import convexityLogoLight from '../ConvexityLogoLight.png';
 import { Route } from 'react-router-dom';
 import Deposit from './Deposit';
 import Borrow from './Borrow.js';
-import Home from './Home.js';
 
 export default function Navbar(props) {
 
     // Declare a new state variable, which we'll call "fromAccount"
     const [fromAccount, setFromAccount] = useState();
     const [networkId, setNetworkId] = useState();
+    const b2x = props.blocksToExpiry;
+    const exb = props.expiryBlock;
+    const balanceInEth = props.balanceInEth;
+    const balanceInUSDC = props.balanceInUSDC;
+    const impFixedApy = props.impFixedApy;
+    const proxyWallet = props.proxyWallet;
+    const accounts = props.userAccounts;
 
     return (
         <header style={headerStyle}>
@@ -25,18 +31,33 @@ export default function Navbar(props) {
 
                 {/* <Route path="/" component={Home} /> */}
                 {/* <Route path="/home" component={Home} /> */}
-                <Route path="/deposit" component={Deposit} />
+                <Route path="/deposit" render={(props) => (
+                    <Deposit {...props}
+                        blocksToExpiry={b2x}
+                        expiryBlock={exb}
+                        balanceInEth={balanceInEth}
+                        balanceInUSDC={balanceInUSDC}
+                        impFixedApy={impFixedApy}
+                        proxyWallet={proxyWallet}
+                        accounts={accounts}
+                    />
+                )}/>
                 <Route path="/borrow" component={Borrow} />
 
 
             </div>
-            <div style={connectorStyle}>
-                <button style={connectWalletBtn} onClick={() => setFromAccount("0x123")}>
-                    Connect Wallet
-                </button>
+            <div style={blockchainInfoStyle}>
                 <p style = {accountsStyle} >Account: {props.displayAccount}</p>
-                <p style = {accountsStyle} >NetworkID: {props.networkId}</p>
-                <p style = {accountsStyle} >USDC Exchange Rate: {props.cUSDCxr} </p> 
+                <p style = {accountsStyle} >Network ID: {props.networkId}</p>
+                <p style = {accountsStyle} >Chain ID: {props.chainId} </p>
+                <p style = {accountsStyle} >USDC Exchange Rate: {props.cUSDCxr} </p>
+                <p style = {accountsStyle} >ETH Balance: {props.balanceInEth} </p>
+                <p style = {accountsStyle} >USDC Balance: {props.balanceInUSDC} </p>
+                <p style = {accountsStyle} >Proxy Wallet: {props.proxyWalletDisplay} </p>
+                <p style = {accountsStyle} >Proxy Wallet cUSDC: {props.pWalletCusdcBal} </p>
+                <p style = {accountsStyle} >Proxy Wallet SFT: {props.pWalletSftBal} </p>
+                <p style = {accountsStyle} >Proxy Wallet USDC value: {props.pWalletValueUsdc} </p>
+                <p style = {accountsStyle} >Proxy Wallet USDC Maturity: {props.pWalletValueMat} </p>
             </div>
 
         </header>
@@ -45,21 +66,12 @@ export default function Navbar(props) {
 
 const accountsStyle = { fontSize: 16, marginBottom: '15px' };
 
-const connectorStyle = {
+const blockchainInfoStyle = {
     position: 'fixed',
-    top: '10%',
+    top: '15%',
     right: '10%',
     color: '#372b25',
 }
-
-const connectWalletBtn = {
-    marginBottom: '15px',
-    padding: '10px',
-    borderRadius: '5px',
-    borderColor: 'white',
-    color: 'white',
-    backgroundColor: '#BE9325'
-  }
 
 const centerFlex = {
     position: 'fixed',
