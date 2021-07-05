@@ -48,10 +48,25 @@ export class Deposit extends Component {
         console.log('amountEth: ' + amtEthValue );
         console.log('depositing to proxy contract!' + this.props.walletContract)
 
+        // TODO Where should we put the approve function ??
+
+        const from = this.props.accounts[0];
+        const count = await this.state.web3.eth.getTransactionCount(from);
+        //const gasPrice = this.state.web3.eth.gasPrice.toNumber();
+        const gasPrice = 80;
+        const nonce = 4;
+
+        const rawTx = {
+            "from": from,
+            "nonce": nonce,
+            "gas": 210000,          //(optional == gasLimit)
+            // "gasPrice": 4500000,  (optional)
+            // "data": 'For testing' (optional)
+        };
         // Always use arrow functions to avoid scoping and 'this' issues like having to use 'self'
         // in general we should probably use .transfer() over .send() method
         const depositResponse = await this.props.walletContract.methods.deposit(
-            amtEthValue, '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE').send({'from': this.props.accounts[0]});
+            amtEthValue, '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE').send(rawTx);
 
         console.log('depositResponse: ' + JSON. stringify(depositResponse) );
         // // Update state with the result
@@ -119,7 +134,7 @@ export class Deposit extends Component {
                             <div>Deposit Funds: </div>
                     </div>
                     <div className="box c">
-                        <Input  defaultValue=""
+                        <Input
                         value={this.state.amountValue}
                         type="text" onChange={this.handleChangeInputAmount} />
                     </div>
