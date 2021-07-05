@@ -1,3 +1,5 @@
+![alt text](https://github.com/leo-convexity/HackMoney/blob/main/ConvexityLogoLight.png?raw=true)
+
 # Convexity Protocol
 
 Convexity enables users to create fixed rate deposits and stable rate borrowing. Rather than creating an entirely new fixed rate money market, Convexity adds a tokenized interest rate derivative to floating rate money market positions such as Compound or AAVE to create a fixed or stable rate exposure. The leverage inherent in the interest rate derivative enables a much larger amount of stable rate borrow or fixed rate deposit demand to be satisfied with a smaller capital pool.
