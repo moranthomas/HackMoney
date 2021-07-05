@@ -10,6 +10,9 @@ export class Deposit extends Component {
         web3: '',
         amountValue: '',
         displayWalletBalance: '',
+        depositCurrencyValid: false,
+        depositCurrencyDecimals: null,
+        depositCurrencyAddress: null,
     };
 
     currencies = [
@@ -17,6 +20,39 @@ export class Deposit extends Component {
         { label: "DAI", value: "0x6b175474e89094c44da98b954eedeac495271d0f" },
         { label: "ETH", value: "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE" },
     ];
+
+    selectCurrency(currency) {
+        let depositCurrencyValid = true;
+        let displayWalletBalance = null;
+        let depositCurrencyDecimals = null;
+        let depositCurrencyAddress = null;
+        switch (currency) {
+            case "USDC":
+                displayWalletBalance = this.props.balanceInUSDC;
+                depositCurrencyDecimals = 6;
+                depositCurrencyAddress = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
+                break;
+            case "ETH":
+                displayWalletBalance = this.props.balanceInEth;
+                depositCurrencyDecimals = 18;
+                depositCurrencyAddress = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+                break;
+            case "DAI":
+                displayWalletBalance = 0; // FIXME: to be implemented
+                depositCurrencyDecimals = 18;
+                depositCurrencyAddress = "0x6b175474e89094c44da98b954eedeac495271d0f";
+                break;
+            default:
+                depositCurrencyValid = false;
+        }
+        this.setState({
+            chosenCurrency: currency,
+            displayWalletBalance: displayWalletBalance,
+            depositCurrencyValid: depositCurrencyValid,
+            depositCurrencyDecimals: depositCurrencyDecimals,
+            depositCurrencyAddress: depositCurrencyAddress,
+        });
+    }
 
     componentDidMount = async () => {
         try {
@@ -35,12 +71,7 @@ export class Deposit extends Component {
         event.preventDefault();
         let value = event.target.value;
         console.log('new value = ' + value)
-        let displayWalletBalance = null;
-        if (value == "USDC")
-            displayWalletBalance = this.props.balanceInUSDC;
-        else if (value == "ETH")
-            displayWalletBalance = this.props.balanceInEth;
-        this.setState({ chosenCurrency: value, displayWalletBalance: displayWalletBalance });
+        this.selectCurrency(value);
     }
 
     handleChangeInputAmount = async(event) => {
