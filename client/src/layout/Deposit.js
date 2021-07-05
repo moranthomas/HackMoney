@@ -6,7 +6,6 @@ import getWeb3 from "../getWeb3";
 export class Deposit extends Component {
 
     state = {
-        amountEth: '',
         chosenCurrency: '',
         web3: '',
         amountValue: ''
@@ -30,7 +29,6 @@ export class Deposit extends Component {
         var value = event.target.value;
         console.log('new value = ' + value)
         this.setState({ chosenCurrency: value });
-
     }
 
     handleChangeInputAmount = async(event) => {
@@ -42,13 +40,8 @@ export class Deposit extends Component {
     handleSubmitDeposit = async(event) => {
         event.preventDefault();
         const { accounts, contract } = this.state;
-        var amtEthValue = Number(this.state.amountEth);
-        amtEthValue = this.state.amountValue;
-
-        console.log('amountEth: ' + amtEthValue );
-        console.log('depositing to proxy contract!' + this.props.proxyWallet)
-
-        // TODO Where should we put the approve function ??
+        var amtValueNum = Number(this.state.amountValue);
+        console.log('depositing ' +  amtValueNum + ' of chosen currency to proxy Wallet ' + this.props.proxyWallet)
 
         const from = this.props.accounts[0];
         const count = await this.state.web3.eth.getTransactionCount(from);
@@ -59,19 +52,20 @@ export class Deposit extends Component {
         const rawTx = {
             "from": from,
             "nonce": nonce,
-            "gas": 210000,          //(optional == gasLimit)
+            "gas": 210000,  // == gasLimit (optional)
             // "gasPrice": 4500000,  (optional)
             // "data": 'For testing' (optional)
         };
         // Always use arrow functions to avoid scoping and 'this' issues like having to use 'self'
         // in general we should probably use .transfer() over .send() method
         const depositResponse = await this.props.proxyWallet.methods.deposit(
-            amtEthValue, '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE').send(rawTx);
+            amtValueNum, '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE').send(rawTx);
 
         console.log('depositResponse: ' + JSON. stringify(depositResponse) );
-        // // Update state with the result
-        // var updatedAmountEth = Number(this.state.amountEth) + amtEthValue;
-        // this.setState({ amountEth: updatedAmountEth });
+
+        // Update state with the result
+        // var updatedAmount = Number(this.state.amount) + amtValue;
+        // this.setState({ amount: updatedAmount });
     }
 
 
@@ -99,9 +93,11 @@ export class Deposit extends Component {
         const Input = styled.input`
             padding-left: 5px;
             margin-left: 5px;
-            font-size: 8px;
+            padding-top: 5px;
+            padding-bottom: 5px;
+            font-size: 16px;
             font-weight: 200;
-            width: 85%;
+            width: 75%;
             color: gray;
             background: white;
             border: none;
@@ -135,8 +131,9 @@ export class Deposit extends Component {
                     </div>
                     <div className="box c">
                         <Input
-                        value={this.state.amountValue}
-                        type="text" onChange={this.handleChangeInputAmount} />
+                        defaultValue={this.state.amountValue}
+                        onBlur={this.handleChangeInputAmount}
+                        />
                     </div>
                     <div className="box e">
 
