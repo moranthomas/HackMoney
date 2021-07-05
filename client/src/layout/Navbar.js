@@ -1,4 +1,4 @@
-import  React, { useState } from 'react';
+import  React from 'react';
 import { Link } from 'react-router-dom';
 import convexityLogoLight from '../ConvexityLogoLight.png';
 import { Route } from 'react-router-dom';
@@ -6,18 +6,6 @@ import Deposit from './Deposit';
 import Borrow from './Borrow.js';
 
 export default function Navbar(props) {
-
-    // Declare a new state variable, which we'll call "fromAccount"
-    const [fromAccount, setFromAccount] = useState();
-    const [networkId, setNetworkId] = useState();
-    const b2x = props.blocksToExpiry;
-    const exb = props.expiryBlock;
-    const balanceInEth = props.balanceInEth;
-    const balanceInUSDC = props.balanceInUSDC;
-    const impFixedApy = props.impFixedApy;
-    const proxyWallet = props.proxyWallet;
-    const accounts = props.userAccounts;
-
     return (
         <header style={headerStyle}>
             <div style={centerFlex}>
@@ -33,13 +21,7 @@ export default function Navbar(props) {
                 {/* <Route path="/home" component={Home} /> */}
                 <Route path="/deposit" render={(props) => (
                     <Deposit {...props}
-                        blocksToExpiry={b2x}
-                        expiryBlock={exb}
-                        balanceInEth={balanceInEth}
-                        balanceInUSDC={balanceInUSDC}
-                        impFixedApy={impFixedApy}
-                        proxyWallet={proxyWallet}
-                        accounts={accounts}
+                        accounts={props.userAccounts}
                     />
                 )}/>
                 <Route path="/borrow" component={Borrow} />
