@@ -62,7 +62,7 @@ class App extends Component {
 
       // getUSDCTokenBalance
       const USDContractInstance = await new web3.eth.Contract(config.usdcAbi, config.usdcAddress);
-      let usdcBalance = await USDContractInstance.methods.balanceOf(userAccounts[0]).call();
+      let usdcBalance = await USDContractInstance.methods.balanceOf(userAccounts[0]).call()/scaler.usdc;
       //sdcBalance = web3.utils.hexToNumber(usdcBalance) / Math.pow(10, 6);
       this.setState( { balanceInUSDC: usdcBalance });
       console.log(' usdcBalance == $ ' + usdcBalance );
