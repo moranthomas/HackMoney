@@ -232,7 +232,10 @@ class App extends Component {
         this.setState({pWalletValueUsdc: pWalletValueUsdc});
         //the expected USDC value at maturity is current cUSDC value times SFT AMM price
         const pWalletValueMat = pWalletValueCusdc*sftImpXr/scaler.cusdcRate;
+        
         this.setState({pWalletValueMat: pWalletValueMat});
+        const hedgeRatio = pWalletSftBal/(pWalletCusdcBal + sftPrice*pWalletSftBal);
+        console.log('hedge Ratio is ' + hedgeRatio);
 
       }
         catch(error){
