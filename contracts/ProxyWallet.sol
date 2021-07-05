@@ -406,10 +406,13 @@ contract ProxyWallet is ProxyWalletImpl {
     }
 
     function _getProxyCommonData(address asset) view internal returns (FutureToken, IUniswapV2Router02, IUniswapV2Factory, CTokenInterface) {
-	return ProxyWallet(payable(_proxy_wallet)).getProxyCommonData(asset);
+	address master_proxy_wallet = _proxy_wallet;
+	if (master_proxy_wallet != address(0))
+	    return ProxyWallet(payable(master_proxy_wallet)).getProxyCommonDataLocal(asset);
+	return _getProxyCommonDataLocal(asset);
     }
 
-    function getProxyCommonData(address asset) view external returns (FutureToken, IUniswapV2Router02, IUniswapV2Factory, CTokenInterface) {
+    function _getProxyCommonDataLocal(address asset) view internal returns (FutureToken, IUniswapV2Router02, IUniswapV2Factory, CTokenInterface) {
 	address factory = _uniswap_router.factory();
 	address ctoken = address(_token_to_ctoken[asset]);
 	require(ctoken != address(0)); // dev: asset not recognised
@@ -417,6 +420,10 @@ contract ProxyWallet is ProxyWalletImpl {
 		_uniswap_router,
 		IUniswapV2Factory(factory),
 		CTokenInterface(ctoken));
+    }
+
+    function getProxyCommonDataLocal(address asset) view external returns (FutureToken, IUniswapV2Router02, IUniswapV2Factory, CTokenInterface) {
+        return _getProxyCommonDataLocal(asset);
     }
 
     fallback(bytes calldata /*_input*/) external payable returns (bytes memory /*_output*/) { revert(); } // dev: no fallback
