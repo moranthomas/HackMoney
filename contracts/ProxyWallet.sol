@@ -48,7 +48,16 @@ abstract contract ProxyWalletImpl is ProxyWalletData {
 	address indexed _to,
 	address indexed _withdraw_token,
 	address indexed _ctoken,
-	uint _withdrawvalue,
+	uint _withdraw_value,
+	uint _ctoken_value,
+	uint _rate_before,
+	uint _rate_after
+    );
+    event WalletShortHedge(
+	address indexed _to,
+	address indexed _hedge_token,
+	address indexed _ctoken,
+	uint _hedge_value,
 	uint _ctoken_value,
 	uint _rate_before,
 	uint _rate_after
@@ -157,16 +166,13 @@ contract ProxyWallet is ProxyWalletImpl {
     }
 
     function getPricing(address token, uint blocks) external returns (PricingData memory x) {
-	(FutureToken fut,
-	 /*IUniswapV2Router02*/,
-	 IUniswapV2Factory uniswap_factory,
-	 CTokenInterface ctoken_intf) = _getProxyCommonData(token);
-	x.ctoken = address(ctoken_intf);
-	x.exchange_rate = ctoken_intf.exchangeRateCurrent();
-	x.expiry = fut.calcExpiryBlock(blocks);
-	(x.fut_class, x.fut_long, x.fut_short) = fut.getExpiryClassLongShort(ctoken_intf, x.expiry);
+	ProxyCommonData memory data = _getProxyCommonData(token);
+	x.ctoken = address(data.ctoken);
+	x.exchange_rate = data.ctoken.exchangeRateCurrent();
+	x.expiry = data.future_token_master.calcExpiryBlock(blocks);
+	(x.fut_class, x.fut_long, x.fut_short) = data.future_token_master.getExpiryClassLongShort(data.ctoken, x.expiry);
 	if (x.fut_long != address(0)) {
-	    x.uni_fut_ctoken_long = uniswap_factory.getPair(x.fut_long, x.ctoken);
+	    x.uni_fut_ctoken_long = data.uniswap_factory.getPair(x.fut_long, x.ctoken);
 	    if (x.uni_fut_ctoken_long != address(0)) {
 		(x.reserves_fut_long, x.reserves_ctoken_long, x.timestamp_fut_ctoken_long) = IUniswapV2Pair(x.uni_fut_ctoken_long).getReserves();
 		if (x.fut_long > x.ctoken) {
@@ -175,7 +181,7 @@ contract ProxyWallet is ProxyWalletImpl {
 	    }
 	}
 	if (x.fut_short != address(0)) {
-	    x.uni_fut_ctoken_short = uniswap_factory.getPair(x.fut_short, x.ctoken);
+	    x.uni_fut_ctoken_short = data.uniswap_factory.getPair(x.fut_short, x.ctoken);
 	    if (x.uni_fut_ctoken_short != address(0)) {
 		(x.reserves_fut_short, x.reserves_ctoken_short, x.timestamp_fut_ctoken_short) = IUniswapV2Pair(x.uni_fut_ctoken_short).getReserves();
 		if (x.fut_short > x.ctoken) {
@@ -206,19 +212,16 @@ contract ProxyWallet is ProxyWalletImpl {
     }
 
     function getBalancesForTokenExpiry(address token, uint blocks) view external returns (BalanceData memory x) {
-	(FutureToken fut,
-	 /*IUniswapV2Router02*/,
-	 /*IUniswapV2Factory*/,
-	 CTokenInterface ctoken) = _getProxyCommonData(token);
-	x.expiry = fut.calcExpiryBlock(blocks);
-	if (ctoken == _cether) {
+	ProxyCommonData memory data = _getProxyCommonData(token);
+	x.expiry = data.future_token_master.calcExpiryBlock(blocks);
+	if (data.ctoken == _cether) {
 	    x.token = ETH_TOKEN_ADDRESS;
 	    x.balance_token = address(this).balance;
 	} else {
-	    x.token = ICErc20(address(ctoken)).underlying();
+	    x.token = ICErc20(address(data.ctoken)).underlying();
 	    x.balance_token = IERC20(token).balanceOf(address(this));
 	}
-	(x.fut_class, x.fut_long, x.fut_short) = fut.getExpiryClassLongShort(ctoken, x.expiry);
+	(x.fut_class, x.fut_long, x.fut_short) = data.future_token_master.getExpiryClassLongShort(data.ctoken, x.expiry);
 	x.balance_future_long = FutureToken(x.fut_long).balanceOf(address(this));
 	x.balance_future_short = FutureToken(x.fut_short).balanceOf(address(this));
     }
@@ -243,10 +246,8 @@ contract ProxyWallet is ProxyWalletImpl {
     }
 
     function withdraw(uint amount, address token) external onlyOwner returns (bool) {
-	(/*FutureToken*/,
-	 /*IUniswapV2Router02*/,
-	 /*IUniswapV2Factory*/,
-	 CTokenInterface ctoken_intf) = _getProxyCommonData(token);
+	ProxyCommonData memory data = _getProxyCommonData(token);
+	CTokenInterface ctoken_intf = data.ctoken;
 
 	if (token == ETH_TOKEN_ADDRESS || ctoken_intf == _cether)
 	    return _withdraw_ether(amount, token, ICEther(payable(address(ctoken_intf))));
@@ -324,36 +325,36 @@ contract ProxyWallet is ProxyWalletImpl {
     }
 
     function deposit(uint amount, address token) external payable onlyOwner returns (bool) {
-	(/*FutureToken*/,
-	 /*IUniswapV2Router02*/,
-	 /*IUniswapV2Factory*/,
-	 CTokenInterface ctoken_intf) = _getProxyCommonData(token);
+	ProxyCommonData memory data = _getProxyCommonData(token);
+	CTokenInterface ctoken_intf = data.ctoken;
 
 	if (token == ETH_TOKEN_ADDRESS) {
 	    assert(amount >= msg.value); // dev: supplied ether less than amount required
 	    if (amount < msg.value) {
 		uint refund = msg.value - amount;
-		(bool sent, bytes memory data) = msg.sender.call{value: refund}("");
+		(bool sent, /*bytes memory data*/) = msg.sender.call{value: refund}("");
 		require(sent); // dev: failed to refund excess deposit amount
 	    }
 	    ICEther cether = ICEther(payable(address(ctoken_intf)));
-	    return _deposit_ether(amount, cether);
+	    require(_deposit_ether(amount, cether) > 0); // dev: nothing minted
+	    return true;
 	}
 
 	// for token deposits, refund any/all ETH sent
 	if (msg.value > 0) {
-	    (bool sent, bytes memory data) = msg.sender.call{value: msg.value}("");
+	    (bool sent, /*bytes memory data*/) = msg.sender.call{value: msg.value}("");
 	    require(sent); // dev: failed to refund excess deposit amount
 	}
 
 	address ctoken = address(ctoken_intf);
 	if (token != ctoken)
-	    return _deposit_erc20(amount, IERC20(token), ICErc20(ctoken));
+	    require(_deposit_erc20(amount, IERC20(token), ICErc20(ctoken)) > 0); // dev: nothing minted
 	else
-	    return _deposit_ctoken(amount, ICErc20(ctoken));
+	    require(_deposit_ctoken(amount, ICErc20(ctoken)) > 0); // dev: nothing minted
+	return true;
     }
 
-    function _deposit_ether(uint amount, ICEther cether) internal returns (bool) {
+    function _deposit_ether(uint amount, ICEther cether) internal returns (uint) {
 	require(amount > 0); // dev: amount is zero
 
 	uint balance_before = cether.balanceOf(address(this));
@@ -364,10 +365,10 @@ contract ProxyWallet is ProxyWalletImpl {
 	require(balance_minted > 0); // dev: nothing minted
 
 	emit WalletDeposit(msg.sender, ETH_TOKEN_ADDRESS, address(cether), amount, balance_minted, rate_before, rate_after);
-	return true;
+	return balance_minted;
     }
 
-    function _deposit_erc20(uint amount, IERC20 token, ICErc20 ctoken) internal returns (bool) {
+    function _deposit_erc20(uint amount, IERC20 token, ICErc20 ctoken) internal returns (uint) {
 	require(amount > 0); // dev: amount is zero
 	require(address(token) != address(ctoken)); // dev: token cannot be a ctoken
 
@@ -388,10 +389,10 @@ contract ProxyWallet is ProxyWalletImpl {
 	require(balance_minted > 0); // dev: nothing minted
 
 	emit WalletDeposit(msg.sender, address(token), address(ctoken), amount, balance_minted, rate_before, rate_after);
-	return true;
+	return balance_minted;
     }
 
-    function _deposit_ctoken(uint amount, ICErc20 ctoken) internal returns (bool) {
+    function _deposit_ctoken(uint amount, ICErc20 ctoken) internal returns (uint) {
 	require(amount > 0); // dev: amount is zero
 
 	uint balance_before = ctoken.balanceOf(address(this));
@@ -402,27 +403,121 @@ contract ProxyWallet is ProxyWalletImpl {
 	require(balance_minted > 0); // dev: nothing minted
 
 	emit WalletDeposit(msg.sender, address(ctoken), address(ctoken), amount, balance_minted, rate_before, rate_after);
+	return balance_minted;
+    }
+
+    function depositAndHedge(uint amount, address token, uint blocks, uint max_slippage, uint deadline) external payable onlyOwner returns (bool) {
+	ProxyCommonData memory data = _getProxyCommonData(token);
+
+	uint balance_minted;
+	if (token == ETH_TOKEN_ADDRESS) {
+	    assert(amount >= msg.value); // dev: supplied ether less than amount required
+	    if (amount < msg.value) {
+		uint refund = msg.value - amount;
+		(bool sent, /*bytes memory data*/) = msg.sender.call{value: msg.value}("");
+		require(sent); // dev: failed to refund excess deposit amount
+	    }
+	    ICEther cether = ICEther(payable(address(data.ctoken)));
+	    balance_minted = _deposit_ether(amount, cether);
+	} else {
+	    // for token deposits, refund any/all ETH sent
+	    if (msg.value > 0) {
+		(bool sent, /*bytes memory data*/) = msg.sender.call{value: msg.value}("");
+		require(sent); // dev: failed to refund excess deposit amount
+	    }
+
+	    address ctoken = address(data.ctoken);
+	    if (token != ctoken)
+		balance_minted = _deposit_erc20(amount, IERC20(token), ICErc20(ctoken));
+	    else
+		balance_minted = _deposit_ctoken(amount, ICErc20(ctoken));
+	}
+
+	_hedge(balance_minted, blocks, max_slippage, deadline, data);
 	return true;
     }
 
-    function _getProxyCommonData(address asset) view internal returns (FutureToken, IUniswapV2Router02, IUniswapV2Factory, CTokenInterface) {
+    /*
+      @KP  To get the % price slippage limit from a yield slippage limit :
+
+      User indicates that they are willing to tolerate a maximum of 5 basis point slippage in yield:
+
+      ySlipLimit = 0.0005
+      min = minExchangeRate
+      cxr = currentExchangeRate
+      tf = timeFactor = blocksToExpiry/BlocksInYear
+      indic = indic SFT price from reserves
+
+      pSlipLimit as a percentage = (ySlipLimit  * timeFactor * cxr ) / (min * indic)
+    */
+
+    //    function calcHedgePrice(uint hedge_amount, uint exchange_rate_current, uint ctoken_reserves, future_reserves, uint max_slippage) pure public returns (uint) {
+    //    }
+
+    function _hedge(uint amount, uint blocks, uint max_slippage, uint deadline, ProxyCommonData memory data) internal returns (uint amount_out, uint amount_in) {
+	require(amount > 0); // dev: amount must be non-zero
+	CTokenInterface ctoken = data.ctoken;
+
+	address fut_short; {
+	    uint expiry = data.future_token_master.calcExpiryBlock(blocks);
+	    (,, fut_short) = data.future_token_master.getExpiryClassLongShort(ctoken, expiry);
+	    require(fut_short != address(0)); // dev: no future for given expiry exists
+	}
+
+	uint amountInMax = amount; // slippage control not currently implemented
+	address[] memory path = new address[](2); {
+	    path[0] = address(ctoken);
+	    path[1] = fut_short;
+	}
+
+	uint rate_before = ctoken.exchangeRateCurrent();
+
+	require(ctoken.approve(address(data.uniswap_router), amountInMax)); // dev: set ctoken allowance for uniswap failed
+	uint[] memory amounts = data.uniswap_router.swapTokensForExactTokens(amount, amountInMax, path, address(this), deadline);
+	require(amounts.length == 2); // dev: unexpected number of amounts returned from uniswap.swapTokensForExactTokens
+
+	amount_out = amounts[0];
+	amount_in = amounts[1];
+
+	if (amount_out < amountInMax)
+	    require(ctoken.approve(address(data.uniswap_router), 0)); // dev: reset ctoken allowance for uniswap failed
+
+	uint rate_after = ctoken.exchangeRateCurrent();
+
+	emit WalletShortHedge(msg.sender,
+			      fut_short,
+			      address(ctoken),
+			      amount_in,
+			      amount_out,
+			      rate_before,
+			      rate_after);
+    }
+
+    struct ProxyCommonData {
+	FutureToken future_token_master;
+	IUniswapV2Router02 uniswap_router;
+	IUniswapV2Factory uniswap_factory;
+	CTokenInterface ctoken;
+     }
+
+    function _getProxyCommonData(address asset) view internal returns (ProxyCommonData memory) {
 	address master_proxy_wallet = _proxy_wallet;
 	if (master_proxy_wallet != address(0))
 	    return ProxyWallet(payable(master_proxy_wallet)).getProxyCommonDataLocal(asset);
 	return _getProxyCommonDataLocal(asset);
     }
 
-    function _getProxyCommonDataLocal(address asset) view internal returns (FutureToken, IUniswapV2Router02, IUniswapV2Factory, CTokenInterface) {
+    function _getProxyCommonDataLocal(address asset) view internal returns (ProxyCommonData memory x) {
 	address factory = _uniswap_router.factory();
 	address ctoken = address(_token_to_ctoken[asset]);
 	require(ctoken != address(0)); // dev: asset not recognised
-	return (_future_token,
-		_uniswap_router,
-		IUniswapV2Factory(factory),
-		CTokenInterface(ctoken));
+	x.future_token_master = _future_token;
+	x.uniswap_router = _uniswap_router;
+	x.uniswap_factory = IUniswapV2Factory(factory);
+	x.ctoken = CTokenInterface(ctoken);
     }
 
-    function getProxyCommonDataLocal(address asset) view external returns (FutureToken, IUniswapV2Router02, IUniswapV2Factory, CTokenInterface) {
+    function getProxyCommonDataLocal(address asset) view external returns (ProxyCommonData memory ) {
         return _getProxyCommonDataLocal(asset);
     }
 
