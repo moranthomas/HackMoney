@@ -15,7 +15,7 @@ export default function Navbar(props) {
     const balanceInEth = props.balanceInEth;
     const balanceInUSDC = props.balanceInUSDC;
     const impFixedApy = props.impFixedApy;
-    const walletContract = props.walletContract;
+    const proxyWallet = props.proxyWallet;
     const accounts = props.userAccounts;
 
     return (
@@ -38,7 +38,7 @@ export default function Navbar(props) {
                         balanceInEth={balanceInEth}
                         balanceInUSDC={balanceInUSDC}
                         impFixedApy={impFixedApy}
-                        walletContract={walletContract}
+                        proxyWallet={proxyWallet}
                         accounts={accounts}
                     />
                 )}/>

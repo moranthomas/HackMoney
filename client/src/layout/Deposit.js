@@ -46,7 +46,7 @@ export class Deposit extends Component {
         amtEthValue = this.state.amountValue;
 
         console.log('amountEth: ' + amtEthValue );
-        console.log('depositing to proxy contract!' + this.props.walletContract)
+        console.log('depositing to proxy contract!' + this.props.proxyWallet)
 
         // TODO Where should we put the approve function ??
 
@@ -65,7 +65,7 @@ export class Deposit extends Component {
         };
         // Always use arrow functions to avoid scoping and 'this' issues like having to use 'self'
         // in general we should probably use .transfer() over .send() method
-        const depositResponse = await this.props.walletContract.methods.deposit(
+        const depositResponse = await this.props.proxyWallet.methods.deposit(
             amtEthValue, '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE').send(rawTx);
 
         console.log('depositResponse: ' + JSON. stringify(depositResponse) );

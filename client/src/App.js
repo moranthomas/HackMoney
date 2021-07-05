@@ -30,7 +30,7 @@ class App extends Component {
     balanceInUSDC: '',
     walletContract: null
   };
-  
+
 
   isMetaMaskInstalled = () => MetaMaskOnboarding.isMetaMaskInstalled()
 
@@ -76,13 +76,13 @@ class App extends Component {
 
       //when brownie deploys contracts with helper, it drops in more addresses
 
-      const proxyWalletMasterAddress = map.dev.ProxyWallet[map.dev.ProxyWallet.length-1].toString(); 
+      const proxyWalletMasterAddress = map.dev.ProxyWallet[map.dev.ProxyWallet.length-1].toString();
       const proxyWalletAbi = ProxyWalletJSON.abi;
       const proxyWalletMaster = new web3.eth.Contract(
         proxyWalletAbi,
         proxyWalletMasterAddress,
       );
-     
+
       const futureTokenMasterAddress = map.dev.FutureToken[map.dev.FutureToken.length-1].toString();
       const futureTokenAbi = FutureTokenJSON.abi;
       const futureTokenMaster = new web3.eth.Contract(
@@ -103,13 +103,13 @@ class App extends Component {
 
 
       console.log('proxyWalletMaster: ' + proxyWalletMaster);
-      
+
       //Goal is to create a wallet contract instance
       //this transaction gets or creates a wallet if needed.
       //we should check if the userAccount already has a wallet deployed
       //declare a walletAddress variable
       var proxyWalletAddress = '';
-      
+
       try {
         //try calling the getClone method. If there is no clone, then we will get an error
         proxyWalletAddress = await proxyWalletMaster.methods.getWallet().call({'from': userAccounts[0]});
@@ -128,8 +128,8 @@ class App extends Component {
       );
       this.setState({ proxyWalletDisplay: proxyWalletAddress.substring(0,8) });
       console.log('proxyWalletAddress ' + this.state.proxyWalletDisplay);
-      this.setState({walletContract: walletContract});
-      this.setState({ userWalletDisplay: walletAddress.substring(0,8) });
+      this.setState({proxyWallet: proxyWallet});
+      //this.setState({ userWalletDisplay: walletAddress.substring(0,8) });
 
       //The goal here is to find out the futureClass Token expiry block
       //We will assume that the script has run and there is an exisiting expiry
@@ -139,13 +139,13 @@ class App extends Component {
       const blockNumber = await web3.eth.getBlockNumber();
       console.log('block height ' + blockNumber);
       //find out what the next Expiry block is that is at 196608 blocks from now
-      var nextExpiry = await futureTokenMaster.methods.calcNextExpiryBlockAfter(196608).call(); 
+      var nextExpiry = await futureTokenMaster.methods.calcNextExpiryBlockAfter(196608).call();
       console.log('next expiry should be '+ nextExpiry);
       var futureTokens = []
 
       try{
         futureTokens = await futureTokenMaster.methods.getExpiryClassLongShort(cUsdcAddress,nextExpiry).call(); //with that and the cUSDC token address, we can get the three tokens
-        
+
         //sometimes the future tokens are created right at a multiple of 4096, then the expiry might be missed
         if(futureTokens[0] === '0x0000000000000000000000000000000000000000'){
           console.log('trying again to find expiry')
@@ -166,7 +166,7 @@ class App extends Component {
           futureTokens[2].toString(),
         )
         console.log('futureTokenShort is good')
-        
+
 
 
         //getting price data
@@ -185,14 +185,14 @@ class App extends Component {
         function ammImpSftXR(sft_res, ctok_res, min_xr, col) {
           return min_xr*(1+col/1e18-ctok_res/sft_res);
         }
-        
+
         //getting the variables
         const prices = await proxyWallet.methods.getPricing(cUsdcAddress,nextExpiry).call();
-        
+
         const sftReserves = prices[4];
         const cUsdcReserves = prices[5];
         const sftPrice = ammPrice(sftReserves, cUsdcReserves);
-        
+
         const minxr = await futureTokenClass.methods.createPrice().call();
         const cxr = prices[0];
         const collatFactor = await futureTokenShort.methods.collateralFactor().call();
@@ -231,11 +231,11 @@ class App extends Component {
         //and the value of the whole wallet is SFT + cTokens -raw
         const pWalletValueCusdc = sftValue + pWalletCusdcBal;
         //and the underlying value is - raw
-        const pWalletValueUsdc = pWalletValueCusdc*prices[0]/scaler.cusdcRate;      
+        const pWalletValueUsdc = pWalletValueCusdc*prices[0]/scaler.cusdcRate;
         this.setState({pWalletValueUsdc: pWalletValueUsdc});
         //the expected USDC value at maturity is current cUSDC value times SFT AMM price
         const pWalletValueMat = pWalletValueCusdc*sftImpXr/scaler.cusdcRate;
-        
+
         this.setState({pWalletValueMat: pWalletValueMat});
         const hedgeRatio = pWalletSftBal/(pWalletCusdcBal + sftPrice*pWalletSftBal);
         console.log('hedge Ratio is ' + hedgeRatio);
@@ -329,6 +329,7 @@ class App extends Component {
                 pWalletValueUsdc={this.state.pWalletValueUsdc}
                 pWalletValueMat={this.state.pWalletValueMat}
                 impFixedApy={this.state.impFixedApy}
+                proxyWallet={this.state.proxyWallet}
                 />
 
                 <OnboardingButton></OnboardingButton>
