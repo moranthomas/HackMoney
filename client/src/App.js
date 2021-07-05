@@ -187,7 +187,7 @@ class App extends Component {
         }
 
         //getting the variables
-        const prices = await proxyWallet.methods.getPricing(cUsdcAddress,nextExpiry).call();
+        const prices = await proxyWalletMaster.methods.getPricing(cUsdcAddress,nextExpiry).call();
 
         const sftReserves = prices[4];
         const cUsdcReserves = prices[5];
