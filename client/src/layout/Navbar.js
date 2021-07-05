@@ -14,6 +14,7 @@ export default function Navbar(props) {
     const exb = props.expiryBlock;
     const balanceInEth = props.balanceInEth;
     const balanceInUSDC = props.balanceInUSDC;
+    const impFixedApy = props.impFixedApy;
     const walletContract = props.walletContract;
     const accounts = props.userAccounts;
 
@@ -36,9 +37,9 @@ export default function Navbar(props) {
                         expiryBlock={exb}
                         balanceInEth={balanceInEth}
                         balanceInUSDC={balanceInUSDC}
+                        impFixedApy={impFixedApy}
                         walletContract={walletContract}
                         accounts={accounts}
-
                     />
                 )}/>
                 <Route path="/borrow" component={Borrow} />
@@ -52,7 +53,11 @@ export default function Navbar(props) {
                 <p style = {accountsStyle} >USDC Exchange Rate: {props.cUSDCxr} </p>
                 <p style = {accountsStyle} >ETH Balance: {props.balanceInEth} </p>
                 <p style = {accountsStyle} >USDC Balance: {props.balanceInUSDC} </p>
-                <p style = {accountsStyle} >User Wallet: {props.userWalletDisplay} </p>
+                <p style = {accountsStyle} >Proxy Wallet: {props.proxyWalletDisplay} </p>
+                <p style = {accountsStyle} >Proxy Wallet cUSDC: {props.pWalletCusdcBal} </p>
+                <p style = {accountsStyle} >Proxy Wallet SFT: {props.pWalletSftBal} </p>
+                <p style = {accountsStyle} >Proxy Wallet USDC value: {props.pWalletValueUsdc} </p>
+                <p style = {accountsStyle} >Proxy Wallet USDC Maturity: {props.pWalletValueMat} </p>
             </div>
 
         </header>
