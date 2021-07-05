@@ -191,8 +191,8 @@ def main():
 
     METAMASK_ACCOUNT = os.environ.get('METAMASK_PRIVATE_KEY')
     if METAMASK_ACCOUNT:
-        print_text_box(f'ADDING METAMASK ACCOUNT {METAMASK_ACCOUNT}')
         METAMASK_ACCOUNT = accounts.add(METAMASK_ACCOUNT)
+        print_text_box(f'ADDING METAMASK ACCOUNT {METAMASK_ACCOUNT}')
 
     network = brownie.network.main.show_active()
     CUSDC.exchangeRateCurrent({'from': accounts[0]}) #initialize the exchangeRateCurrent so that we don't get revert error
