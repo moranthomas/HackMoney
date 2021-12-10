@@ -8,7 +8,7 @@ import datetime
 from decimal import Decimal
 from typing import Any, Mapping, Optional, Sequence, Tuple, Union
 from brownie import Contract, Fixed, accounts, chain
-from .helper import D, Wrapper, load_mainnet_contracts
+from helper import D, Wrapper, load_mainnet_contracts
 
 def main():
     W = Wrapper()

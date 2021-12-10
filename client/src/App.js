@@ -49,7 +49,9 @@ class App extends Component {
       const userAccounts = await web3.eth.getAccounts();    // Use web3 to get the user's accounts.
       const networkId = await web3.eth.net.getId();         // Get the contract instance.
       const chainId = await web3.eth.getChainId()
+      const networkPort = await web3.eth.net
 
+      console.log("networkPort: ", networkPort);
       console.log("networkId: ", networkId);
       console.log("chainId: ", chainId);
       console.log("User Accounts:" , userAccounts);
