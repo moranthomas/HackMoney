@@ -5,4 +5,5 @@ __pycache__/
 venv-py3.8/
 venv/
 bin/
+
 *~
